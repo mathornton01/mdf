@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Hexagonal Conference ID Badge
+  A regular flat-top hexagon badge for Dr. Sarah Johnson, Keynote Speaker,
+  MorphousDev Conference 2026.
+
+  Hexagon geometry:
+    Bounding box: 90mm wide × 104mm tall
+    Center: (45, 52)
+    Circumradius (vertex-to-center): 45mm
+    Flat-top orientation: top and bottom edges are horizontal.
+
+    Vertices (flat-top, starting top-right, clockwise):
+      A top-right:    (84, 29)   [center.x + R·cos(30°), center.y - R·sin(30°)]
+      B top:          (45,  7)   [top flat edge center, effectively center.y - R]
+      Wait — for flat-top the vertices are at angles 0°, 60°, 120°, 180°, 240°, 300°:
+        0°  → right:        (90, 52)  — outside 90mm box, so radius must be 45mm from (45,52)
+        So vertex list:
+          right:        (45 + 45·cos(0°),   52 + 45·sin(0°))   = (90, 52)   — edge of canvas
+          lower-right:  (45 + 45·cos(60°),  52 + 45·sin(60°))  = (67.5, 90.99) ≈ (67.5, 91)
+          lower-left:   (45 + 45·cos(120°), 52 + 45·sin(120°)) = (22.5, 90.99) ≈ (22.5, 91)
+          left:         (45 + 45·cos(180°), 52 + 45·sin(180°)) = (0, 52)
+          upper-left:   (45 + 45·cos(240°), 52 + 45·sin(240°)) = (22.5, 13.01) ≈ (22.5, 13)
+          upper-right:  (45 + 45·cos(300°), 52 + 45·sin(300°)) = (67.5, 13.01) ≈ (67.5, 13)
+
+      Simplified to integer coords for the path:
+        M 90,52  L 67.5,91  L 22.5,91  L 0,52  L 22.5,13  L 67.5,13  Z
+      This gives the "pointy sides, flat top/bottom" orientation — but the brief
+      specifies flat-top (horizontal top and bottom edges), which is the orientation
+      where vertices are at top-left, top-right, right, bottom-right, bottom-left, left.
+      Flat-top angles: 30°, 90°, 150°, 210°, 270°, 330° from center.
+        top-right:    (45 + 45·cos(30°),  52 - 45·sin(30°))  = (83.97, 29.5)  ≈ (84, 29)   ✓ matches brief
+        bottom:       (45 + 45·cos(90°),  52 - 45·sin(90°))  = (45, 7)        → TOP vertex
+        Wait — re-reading the brief path: M 45,7 L 84,29 L 84,75 L 45,97 L 6,75 L 6,29 Z
+        That path has:
+          top:          (45, 7)
+          upper-right:  (84, 29)
+          lower-right:  (84, 75)
+          bottom:       (45, 97)
+          lower-left:   (6, 75)
+          upper-left:   (6, 29)
+        This is a pointy-top hexagon. The flat edges are at the sides (left/right).
+        Bounding box: x from 6 to 84 = 78mm wide; y from 7 to 97 = 90mm tall.
+        Placed in a 90mm×104mm canvas with the hexagon shifted slightly inward from edges.
+        Circumradius ≈ 45mm (center to vertex ≈ sqrt((45-45)²+(52-7)²) = 45mm ✓).
+
+  This example demonstrates:
+  - Six-sided convex polygon boundary
+  - Professional conference badge with photo placeholder zone
+  - Multi-color layered background with gradient-suggesting overlays
+  - QR code placeholder zone for badge scanning
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:print="https://morphousdoc.org/ns/print/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Dr. Sarah Johnson — MorphousDev 2026 Conference Badge</meta:title>
+    <meta:author>MorphousDev Conference Organizing Committee</meta:author>
+    <meta:created>2026-05-01T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+
+    <conformance level="print"/>
+
+    <print:intent>
+      <print:substrate>coated</print:substrate>
+      <print:color-mode>cmyk</print:color-mode>
+      <print:resolution target="300dpi"/>
+      <!-- Standard conference badge stock: 350gsm gloss, single-sided -->
+      <print:special-finish>gloss-laminate</print:special-finish>
+    </print:intent>
+
+    <assets>
+      <!-- Raleway ExtraBold: strong geometric letterforms match the hex shape -->
+      <font id="heading-font"
+            family="Raleway"
+            weight="800"
+            src="fonts/Raleway-ExtraBold.woff2"
+            embed="true"/>
+      <!-- Raleway SemiBold: for the name — legible at medium sizes -->
+      <font id="name-font"
+            family="Raleway"
+            weight="600"
+            src="fonts/Raleway-SemiBold.woff2"
+            embed="true"/>
+      <!-- Raleway Regular: for body text and contact info -->
+      <font id="body-font"
+            family="Raleway"
+            weight="400"
+            src="fonts/Raleway-Regular.woff2"
+            embed="true"/>
+      <!-- Raleway Light: for fine-print institution and event details -->
+      <font id="light-font"
+            family="Raleway"
+            weight="300"
+            src="fonts/Raleway-Light.woff2"
+            embed="true"/>
+    </assets>
+  </manifest>
+
+  <!--
+    Canvas: 90mm wide × 104mm tall.
+
+    The hexagon path (pointy-top orientation, center at 45,52, radius 45mm)
+    as specified in the brief:
+      M 45,7 L 84,29 L 84,75 L 45,97 L 6,75 L 6,29 Z
+
+    print:die-cut="true" — cut to the hexagon for physical badge production.
+    sem:shape-meaning="id-badge" signals badge/credential semantics.
+  -->
+  <canvas width="90" height="104" units="mm"
+          boundary="M 45,7 L 84,29 L 84,75 L 45,97 L 6,75 L 6,29 Z"
+          print:die-cut="true"
+          print:die-cut-type="cut"
+          print:bleed="3mm"
+          sem:shape-type="hexagon"
+          sem:shape-meaning="id-badge">
+
+    <print:marks>
+      <print:registration-marks style="crosshair" offset="8mm"/>
+      <print:crop-marks length="5mm" weight="0.25pt" offset="3mm"/>
+    </print:marks>
+
+    <layers>
+
+      <!--
+        LAYER 1 — Dark navy background fill.
+        Covers the entire hexagon including bleed zone.
+        Dark blue: CMYK (0.9 0.6 0 0.2).
+      -->
+      <layer id="background" blend-mode="normal">
+        <path d="M 45,4 L 87,27 L 87,78 L 45,100 L 3,78 L 3,27 Z"
+              fill="color(cmyk 0.9 0.6 0 0.2)"
+              stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 2 — Lighter blue upper-panel overlay.
+        The top ~40% of the hexagon is a lighter blue, creating a two-tone
+        "header vs. body" split. Clipped to a horizontal band within the hex.
+        Light blue: CMYK (0.3 0.1 0 0).
+      -->
+      <layer id="header-panel" blend-mode="normal">
+        <!--
+          The header zone occupies the top portion of the hexagon.
+          A trapezoid from the top vertex down to y=52 (roughly the center),
+          constrained inside the hex geometry.
+          At y=52 the hex is at full width (x=6 to x=84).
+          At y=29 the upper sides are at x=6 and x=84.
+          At y=7 the top is the single point (45,7).
+        -->
+        <path d="M 45,7 L 84,29 L 84,52 L 6,52 L 6,29 Z"
+              fill="color(cmyk 0.3 0.1 0 0)"
+              stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 3 — Conference name banner at very top of hexagon.
+        A narrow dark-blue horizontal band just below the top vertex,
+        spanning the width of the hex at y≈28–36.
+      -->
+      <layer id="conference-banner" blend-mode="normal">
+        <path d="M 46.5,10 L 78,26 L 78,35 L 12,35 L 12,26 Z"
+              fill="color(cmyk 0.9 0.6 0 0.2)"
+              stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 4 — Decorative hex grid pattern (subtle honeycomb texture).
+        A series of small hexagon outlines in the background to give the badge
+        a technical, developer-conference feel. Stroked in semi-transparent white.
+      -->
+      <layer id="hex-texture" blend-mode="normal" opacity="0.08">
+        <!-- Row 1: small hexagons across the upper area -->
+        <path d="M 22,18 L 27,15 L 32,18 L 32,24 L 27,27 L 22,24 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 35,10 L 40,7 L 45,10 L 45,16 L 40,19 L 35,16 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 48,18 L 53,15 L 58,18 L 58,24 L 53,27 L 48,24 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 61,10 L 66,7 L 71,10 L 71,16 L 66,19 L 61,16 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <!-- Row 2: offset row -->
+        <path d="M 15,30 L 20,27 L 25,30 L 25,36 L 20,39 L 15,36 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 68,30 L 73,27 L 78,30 L 78,36 L 73,39 L 68,36 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <!-- Row 3: lower area -->
+        <path d="M 10,60 L 15,57 L 20,60 L 20,66 L 15,69 L 10,66 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 70,60 L 75,57 L 80,60 L 80,66 L 75,69 L 70,66 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 30,78 L 35,75 L 40,78 L 40,84 L 35,87 L 30,84 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+        <path d="M 50,78 L 55,75 L 60,78 L 60,84 L 55,87 L 50,84 Z"
+              fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm"/>
+      </layer>
+
+      <!--
+        LAYER 5 — Conference name text in the banner.
+        "MORPHOUSDEV 2026" in white, small caps, centered.
+      -->
+      <layer id="conference-name" blend-mode="normal">
+        <text-block id="conf-name" font-ref="heading-font" size="5.5pt" leading="7pt"
+                    text-align="center" color="color(cmyk 0 0 0 0)"
+                    tracking="0.2em">
+          <reflow-region shape="M 12,26 L 78,26 L 78,36 L 12,36 Z" padding="0"/>
+          <p>MORPHOUSDEV 2026</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 6 — Photo placeholder circle.
+        Positioned in the upper-center of the hex, overlapping the header
+        and body panels. In production this would be replaced with an <image>.
+        White circle with navy stroke = professional headshot frame.
+      -->
+      <layer id="photo-placeholder" blend-mode="normal">
+        <!-- White outer ring -->
+        <circle cx="45" cy="52" r="16"
+                fill="color(cmyk 0 0 0 0)"
+                stroke="none"/>
+        <!-- Photo fill area (light blue placeholder) -->
+        <circle cx="45" cy="52" r="14.5"
+                fill="color(cmyk 0.3 0.1 0 0)"
+                stroke="none"/>
+        <!-- Inner navy border -->
+        <circle cx="45" cy="52" r="14.5"
+                fill="none"
+                stroke="color(cmyk 0.9 0.6 0 0.2)"
+                stroke-width="0.5mm"/>
+        <!--
+          In production, replace placeholder with:
+          <image src="headshot-sarah-johnson.jpg"
+                 clip-path="circle at 45,52 r 14.5"
+                 x="30.5" y="37.5" width="29" height="29"/>
+        -->
+      </layer>
+
+      <!--
+        LAYER 7 — "KEYNOTE SPEAKER" role pill/label.
+        A rounded-rectangle label just below the photo circle.
+        White background, dark blue text — visually prominent.
+      -->
+      <layer id="role-badge" blend-mode="normal">
+        <rect x="18" y="70" width="54" height="8" rx="4" ry="4"
+              fill="color(cmyk 0 0 0 0)"
+              stroke="none"/>
+        <text-block id="role-text" font-ref="heading-font" size="5pt" leading="8pt"
+                    text-align="center" color="color(cmyk 0.9 0.6 0 0.2)"
+                    tracking="0.15em">
+          <reflow-region shape="M 18,70 L 72,70 L 72,78 L 18,78 Z" padding="0"/>
+          <p>KEYNOTE SPEAKER</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 8 — Attendee name.
+        "Dr. Sarah Johnson" in Raleway SemiBold, white, large.
+        Centered below the role badge.
+      -->
+      <layer id="name-layer" blend-mode="normal">
+        <text-block id="attendee-name" font-ref="name-font" size="9pt" leading="12pt"
+                    text-align="center" color="color(cmyk 0 0 0 0)">
+          <reflow-region shape="M 10,80 L 80,80 L 80,92 L 10,92 Z" padding="0"/>
+          <p>Dr. Sarah Johnson</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 9 — Institution / affiliation.
+        "MIT CSAIL" in Raleway Light, light blue, below name.
+      -->
+      <layer id="affiliation-layer" blend-mode="normal">
+        <text-block id="affiliation" font-ref="light-font" size="5.5pt" leading="8pt"
+                    text-align="center" color="color(cmyk 0.3 0.1 0 0)">
+          <reflow-region shape="M 14,91 L 76,91 L 76,99 L 14,99 Z" padding="0"/>
+          <p>MIT Computer Science &amp; Artificial Intelligence Laboratory</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 10 — Bottom decorative rule pair.
+        Two thin horizontal lines framing the lower hex tip — a finishing touch.
+      -->
+      <layer id="bottom-rules" blend-mode="normal">
+        <line x1="22" y1="65" x2="68" y2="65"
+              stroke="color(cmyk 0 0 0 0)" stroke-width="0.4mm" opacity="0.4"/>
+        <line x1="26" y1="67" x2="64" y2="67"
+              stroke="color(cmyk 0 0 0 0)" stroke-width="0.15mm" opacity="0.25"/>
+      </layer>
+
+    </layers>
+
+  </canvas>
+</mdf>

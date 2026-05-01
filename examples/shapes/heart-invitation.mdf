@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Heart-Shaped Wedding Invitation
+  A heart-shaped invitation for the wedding of Emma & James, June 21, 2026.
+
+  Heart geometry:
+    Bounding box: 120mm wide × 114mm tall
+    The SVG cubic Bézier heart path traces two symmetric lobes meeting at
+    a center-top cleft and converging to a point at the bottom center.
+
+    Path: M 60,20 C 60,20 20,0 10,30 C 0,60 30,80 60,110
+                   C 90,80 120,60 110,30 C 100,0 60,20 60,20 Z
+
+    Breakdown:
+      - Starts at (60,20) — the top center cleft indentation
+      - Left lobe: cubic from (60,20) through control points (20,0) and (10,30)
+        to the heart's left side, then from (10,30) through (0,60) and (30,80)
+        down to the bottom point (60,110)
+      - Right lobe: cubic from (60,110) back up through (90,80) and (120,60)
+        to (110,30), then from (110,30) through (100,0) back to start (60,20)
+      - Closed with Z
+
+  Color palette:
+    Rose:  CMYK (0 0.70 0.40 0) — warm medium rose, main accent
+    Blush: CMYK (0 0.20 0.15 0) — soft blush pink, background field
+    Cream: CMYK (0 0.03 0.08 0) — near-white cream for text panels
+    White: CMYK (0 0    0    0) — pure white for key text
+
+  This example demonstrates:
+  - Complex cubic Bézier boundary path
+  - Romantic, editorial typography layout
+  - Layered decorative elements (petals, rings, ornamental rules)
+  - Shape-native text reflow that respects the heart's curved interior
+  - Wedding/event invitation as a document class
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:print="https://morphousdoc.org/ns/print/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Emma &amp; James — Wedding Invitation, June 21 2026</meta:title>
+    <meta:author>Emma Hartley &amp; James Whitmore</meta:author>
+    <meta:created>2026-05-01T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+
+    <conformance level="print"/>
+
+    <print:intent>
+      <print:substrate>uncoated</print:substrate>
+      <!--
+        Uncoated cotton paper stock (e.g. Crane Lettra 300gsm) for a soft,
+        tactile feel appropriate for a wedding invitation. CMYK inks will
+        appear slightly softer/more matte than on coated stock.
+      -->
+      <print:color-mode>cmyk</print:color-mode>
+      <print:resolution target="300dpi"/>
+      <print:special-finish>none</print:special-finish>
+    </print:intent>
+
+    <assets>
+      <!--
+        Cormorant Garamond: a romantic, editorial serif — the natural choice
+        for a wedding invitation. The Italic variant provides elegant script-
+        like flourishes without sacrificing legibility.
+      -->
+      <font id="display-font"
+            family="Cormorant Garamond"
+            weight="700"
+            style="italic"
+            src="fonts/CormorantGaramond-BoldItalic.woff2"
+            embed="true"/>
+      <font id="heading-font"
+            family="Cormorant Garamond"
+            weight="600"
+            src="fonts/CormorantGaramond-SemiBold.woff2"
+            embed="true"/>
+      <font id="body-font"
+            family="Cormorant Garamond"
+            weight="400"
+            src="fonts/CormorantGaramond-Regular.woff2"
+            embed="true"/>
+      <font id="script-font"
+            family="Cormorant Garamond"
+            weight="300"
+            style="italic"
+            src="fonts/CormorantGaramond-LightItalic.woff2"
+            embed="true"/>
+      <!--
+        Great Vibes: a true calligraphic script for the couple's names.
+        Used only for the "&" ampersand ornament.
+      -->
+      <font id="script-accent-font"
+            family="Great Vibes"
+            weight="400"
+            src="fonts/GreatVibes-Regular.woff2"
+            embed="true"/>
+    </assets>
+  </manifest>
+
+  <!--
+    Canvas: 120mm × 114mm.
+
+    The heart boundary is defined by two cubic Bézier curves, one per lobe,
+    meeting at the cleft (60,20) and the bottom point (60,110).
+
+    sem:shape-meaning="invitation" signals event-invitation semantics
+    to document-aware systems (e.g., calendar extraction, RSVP processing).
+  -->
+  <canvas width="120" height="114" units="mm"
+          boundary="M 60,20 C 60,20 20,0 10,30 C 0,60 30,80 60,110 C 90,80 120,60 110,30 C 100,0 60,20 60,20 Z"
+          print:die-cut="true"
+          print:die-cut-type="cut"
+          print:bleed="3mm"
+          sem:shape-type="heart"
+          sem:shape-meaning="invitation">
+
+    <print:marks>
+      <print:registration-marks style="crosshair" offset="10mm"/>
+      <print:crop-marks length="5mm" weight="0.25pt" offset="3mm"/>
+    </print:marks>
+
+    <layers>
+
+      <!--
+        LAYER 1 — Blush base fill.
+        The soft blush pink covers the entire heart including bleed zone.
+        This is the primary background from which all other elements read.
+        Blush: CMYK (0 0.20 0.15 0).
+      -->
+      <layer id="background" blend-mode="normal">
+        <!-- Oversize fill that the die-cut will trim; Bézier expanded by 4mm -->
+        <path d="M 60,17 C 60,17 17,-3 6,28 C -4,59 27,81 60,113 C 93,81 124,59 114,28 C 103,-3 60,17 60,17 Z"
+              fill="color(cmyk 0 0.20 0.15 0)"
+              stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 2 — Rose inner heart (decorative inset border).
+        A scaled-down heart path filled with the deeper rose tone, creating
+        a concentric "frame within a frame" effect.
+        Rose: CMYK (0 0.70 0.40 0).
+        Scale: ~88% of the outer heart, inset by roughly 8mm on all sides.
+      -->
+      <layer id="rose-inner-heart" blend-mode="normal">
+        <path d="M 60,26 C 60,26 26,8 17,33 C 8,58 34,76 60,103 C 86,76 112,58 103,33 C 94,8 60,26 60,26 Z"
+              fill="none"
+              stroke="color(cmyk 0 0.70 0.40 0)"
+              stroke-width="0.6mm"/>
+      </layer>
+
+      <!--
+        LAYER 3 — Second decorative inner heart (thinner, for layered effect).
+        Slightly inside the first inset ring, with a dashed stroke.
+      -->
+      <layer id="inner-heart-dash" blend-mode="normal">
+        <path d="M 60,31 C 60,31 30,14 22,37 C 14,60 38,76 60,99 C 82,76 106,60 98,37 C 90,14 60,31 60,31 Z"
+              fill="none"
+              stroke="color(cmyk 0 0.70 0.40 0)"
+              stroke-width="0.25mm"
+              stroke-dasharray="2 3"
+              opacity="0.6"/>
+      </layer>
+
+      <!--
+        LAYER 4 — Floral petal ornaments.
+        Four small ellipses arranged in a diamond pattern around the center,
+        suggesting scattered rose petals. Rendered in rose at low opacity
+        to serve as background texture without competing with text.
+      -->
+      <layer id="petal-ornaments" blend-mode="normal" opacity="0.3">
+        <!-- Top petal, just below cleft -->
+        <ellipse cx="60" cy="38" rx="4" ry="6" transform="rotate(-15 60 38)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <!-- Left petal -->
+        <ellipse cx="36" cy="62" rx="3.5" ry="5.5" transform="rotate(30 36 62)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <!-- Right petal -->
+        <ellipse cx="84" cy="62" rx="3.5" ry="5.5" transform="rotate(-30 84 62)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <!-- Bottom petal -->
+        <ellipse cx="60" cy="88" rx="4" ry="6" transform="rotate(10 60 88)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <!-- Small scatter petals -->
+        <ellipse cx="46" cy="48" rx="2" ry="3" transform="rotate(45 46 48)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <ellipse cx="74" cy="48" rx="2" ry="3" transform="rotate(-45 74 48)"
+                 fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 5 — "You're Invited!" header text.
+        Rendered in Cormorant Garamond SemiBold, rose color, centered in
+        the upper area of the heart (below the cleft, above the couple's names).
+      -->
+      <layer id="invite-header" blend-mode="normal">
+        <text-block id="invite-header-text" font-ref="heading-font" size="8pt" leading="11pt"
+                    text-align="center" color="color(cmyk 0 0.70 0.40 0)"
+                    tracking="0.1em">
+          <reflow-region shape="M 28,38 L 92,38 L 92,50 L 28,50 Z" padding="0"/>
+          <p>You're Invited!</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 6 — Thin ornamental rule below the header.
+        A short rose horizontal rule with small diamond ornaments at each end.
+      -->
+      <layer id="rule-top" blend-mode="normal">
+        <!-- Main rule line -->
+        <line x1="36" y1="52" x2="84" y2="52"
+              stroke="color(cmyk 0 0.70 0.40 0)" stroke-width="0.35mm"/>
+        <!-- Left diamond ornament -->
+        <path d="M 34,52 L 36,50 L 38,52 L 36,54 Z"
+              fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+        <!-- Right diamond ornament -->
+        <path d="M 82,52 L 84,50 L 86,52 L 84,54 Z"
+              fill="color(cmyk 0 0.70 0.40 0)" stroke="none"/>
+      </layer>
+
+      <!--
+        LAYER 7 — Couple's names.
+        "Emma & James" in the large display script, rose, centered.
+        This is the visual focal point of the invitation.
+      -->
+      <layer id="names-layer" blend-mode="normal">
+        <text-block id="couple-names" font-ref="display-font" size="20pt" leading="24pt"
+                    text-align="center" color="color(cmyk 0 0.70 0.40 0)">
+          <reflow-region shape="M 20,53 L 100,53 L 100,76 L 20,76 Z" padding="0"/>
+          <p>Emma &amp; James</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 8 — Thin rule below couple names, above event details.
+      -->
+      <layer id="rule-mid" blend-mode="normal">
+        <line x1="38" y1="79" x2="82" y2="79"
+              stroke="color(cmyk 0 0.70 0.40 0)" stroke-width="0.25mm" opacity="0.7"/>
+      </layer>
+
+      <!--
+        LAYER 9 — Wedding event details block.
+        Date, time, venue — in Cormorant Garamond Regular, dark rose, centered.
+        The reflow region sits in the lower-center body of the heart, well
+        inside the curves.
+      -->
+      <layer id="event-details" blend-mode="normal">
+        <text-block id="details-text" font-ref="body-font" size="7pt" leading="11pt"
+                    text-align="center" color="color(cmyk 0 0.55 0.35 0.1)">
+          <reflow-region shape-ref="canvas-boundary" padding="22mm" padding-top="80mm"/>
+          <p>
+            <span font-ref="script-font" size="7.5pt">Sunday, the Twenty-First of June</span>
+          </p>
+          <p>
+            <span font-ref="heading-font" size="8pt">2026</span>
+          </p>
+          <p>at Four O'Clock in the Afternoon</p>
+          <p> </p>
+          <p>
+            <span font-ref="heading-font" size="7pt">Rosewood Manor</span>
+          </p>
+          <p>1842 Garden Gate Lane</p>
+          <p>Napa Valley, California</p>
+        </text-block>
+      </layer>
+
+      <!--
+        LAYER 10 — RSVP instruction line at the bottom of the heart,
+        just above the lower tip. Very small, unobtrusive.
+      -->
+      <layer id="rsvp-layer" blend-mode="normal">
+        <text-block id="rsvp-text" font-ref="script-font" size="5.5pt" leading="7.5pt"
+                    text-align="center" color="color(cmyk 0 0.70 0.40 0)" opacity="0.8">
+          <reflow-region shape="M 32,100 L 88,100 L 88,108 L 32,108 Z" padding="0"/>
+          <p>Kindly respond by June 1 · rsvp@emmajames2026.com</p>
+        </text-block>
+      </layer>
+
+    </layers>
+
+  </canvas>
+</mdf>

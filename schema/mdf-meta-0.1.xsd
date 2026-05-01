@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Meta Namespace Schema — v0.1
+  Namespace: https://morphousdoc.org/ns/meta/0.1
+
+  Defines the meta: vocabulary used inside <manifest> for document
+  metadata (title, author, dates, language, conformance level) and for
+  the sem:reading-order reading-order declaration block.
+
+  Specification reference: MDF v0.1, Chapter 2 and Chapter 7.
+-->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:meta="https://morphousdoc.org/ns/meta/0.1"
+  xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+  targetNamespace="https://morphousdoc.org/ns/meta/0.1"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <!-- ============================================================
+       Simple type re-used by multiple elements
+       ============================================================ -->
+
+  <!-- BCP 47 language tag — loose pattern, processors validate semantics -->
+  <xs:simpleType name="LanguageTag">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Conformance level — per spec §2.4 the element uses level="1|2|3"
+       but the example documents also use symbolic values (basic, screen,
+       print, archive) from the task spec.  Accept both. -->
+  <xs:simpleType name="ConformanceLevelValue">
+    <xs:union>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="1"/>
+          <xs:enumeration value="2"/>
+          <xs:enumeration value="3"/>
+          <xs:enumeration value="basic"/>
+          <xs:enumeration value="screen"/>
+          <xs:enumeration value="print"/>
+          <xs:enumeration value="archive"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <!-- ============================================================
+       Metadata leaf elements (plain-text content)
+       ============================================================ -->
+
+  <xs:element name="title">
+    <xs:annotation>
+      <xs:documentation>Human-readable document title. Maps to dc:title / schema:name / xmp:Title.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="author">
+    <xs:annotation>
+      <xs:documentation>Primary author name or organization. Maps to dc:creator / schema:author.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="created">
+    <xs:annotation>
+      <xs:documentation>Document creation timestamp. MUST be ISO 8601; SHOULD include timezone.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="modified">
+    <xs:annotation>
+      <xs:documentation>Document last-modified timestamp. MUST be ISO 8601 UTC.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="language">
+    <xs:annotation>
+      <xs:documentation>Primary language of the document content. MUST be a valid BCP 47 tag.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="description">
+    <xs:annotation>
+      <xs:documentation>Short description or abstract. Maps to dc:description / schema:description.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="keywords">
+    <xs:annotation>
+      <xs:documentation>Comma-separated keywords. Maps to dc:subject / schema:keywords.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="subject">
+    <xs:annotation>
+      <xs:documentation>Subject category or classification. Maps to dc:subject / schema:about.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="rights">
+    <xs:annotation>
+      <xs:documentation>Copyright notice or rights statement. Maps to dc:rights / schema:copyrightNotice.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="license-iri">
+    <xs:annotation>
+      <xs:documentation>IRI of the applicable license. Maps to dc:license / schema:license.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="creator-tool">
+    <xs:annotation>
+      <xs:documentation>Name and version of the application that created this document. Maps to xmp:CreatorTool.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ============================================================
+       Conformance declaration element
+       ============================================================ -->
+
+  <xs:element name="conformance">
+    <xs:annotation>
+      <xs:documentation>
+        Declares the conformance level that the document author intends the document
+        to satisfy. Accepted values: 1, 2, 3 (numeric) or basic, screen, print,
+        archive (symbolic). This is a declaration of intent, not a computed property.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="level" type="meta:ConformanceLevelValue" use="required"/>
+      <xs:anyAttribute namespace="##other" processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ============================================================
+       Reading-order declaration block (used inside <manifest>)
+       Defined in the meta namespace for historical reasons but used
+       via the sem: namespace prefix in practice.  The sem: schema
+       re-uses the type defined here.
+       ============================================================ -->
+
+  <!-- sem:item element used within sem:reading-order -->
+  <xs:element name="reading-order" type="meta:ReadingOrderType">
+    <xs:annotation>
+      <xs:documentation>
+        Optional authoritative reading sequence for accessibility. When present inside
+        manifest, this ordering takes precedence over per-element sem:reading-order
+        attributes. Each child sem:item references a content element by its id.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="ReadingOrderType">
+    <xs:sequence>
+      <xs:element name="item" type="meta:ReadingOrderItemType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="ReadingOrderItemType">
+    <xs:attribute name="ref" type="xs:NMTOKEN" use="required">
+      <xs:annotation>
+        <xs:documentation>id of a content element in the canvas. Must be an NMTOKEN matching an actual element id.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+</xs:schema>

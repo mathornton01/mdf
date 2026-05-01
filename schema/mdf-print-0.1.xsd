@@ -1,0 +1,444 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Print Namespace Schema — v0.1
+  Namespace: https://morphousdoc.org/ns/print/0.1
+
+  Defines:
+    • Elements used inside <manifest>: <print:intent> and its children
+    • Elements used inside <canvas>: <print:marks> and its children,
+      <print:safe-zone>, <print:cut-lines>, <print:folds>
+    • Attributes on <canvas>: print:die-cut, print:die-cut-type, print:bleed
+    • Attributes on <layer>: print:role, print:visible-in-render,
+      print:overprint, print:surface-treatment, print:foil-type,
+      print:emboss-depth, print:emboss-direction
+    • Attributes on <shape>/<image>: print:overprint, print:surface-treatment,
+      print:resolution-check
+
+  Specification reference: MDF v0.1, Chapter 9 and §6.8.
+-->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:print="https://morphousdoc.org/ns/print/0.1"
+  targetNamespace="https://morphousdoc.org/ns/print/0.1"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <!-- ============================================================
+       Simple types
+       ============================================================ -->
+
+  <xs:simpleType name="SubstrateType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="coated"/>
+      <xs:enumeration value="uncoated"/>
+      <xs:enumeration value="specialty"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ColorModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="cmyk"/>
+      <xs:enumeration value="rgb"/>
+      <xs:enumeration value="grayscale"/>
+      <xs:enumeration value="spot"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ResolutionType">
+    <xs:annotation>
+      <xs:documentation>Resolution target string, e.g. "300dpi", "600dpi", "1200dpi".</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]+dpi"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DieCutTypeValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="cut"/>
+      <xs:enumeration value="score"/>
+      <xs:enumeration value="perforate"/>
+      <xs:enumeration value="kiss-cut"/>
+      <xs:enumeration value="crease"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PrintRoleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="body"/>
+      <xs:enumeration value="die-cut-overlay"/>
+      <xs:enumeration value="bleed-content"/>
+      <xs:enumeration value="registration-marks"/>
+      <xs:enumeration value="spot-color-plate"/>
+      <xs:enumeration value="foil-plate"/>
+      <xs:enumeration value="emboss-plate"/>
+      <xs:enumeration value="overprint-preview"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="RegistrationMarksStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="crosshair"/>
+      <xs:enumeration value="standard"/>
+      <xs:enumeration value="japanese"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ColorBarPositionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="top"/>
+      <xs:enumeration value="bottom"/>
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="right"/>
+      <xs:enumeration value="top-left"/>
+      <xs:enumeration value="top-right"/>
+      <xs:enumeration value="bottom-left"/>
+      <xs:enumeration value="bottom-right"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="FoldTypeValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="valley"/>
+      <xs:enumeration value="mountain"/>
+      <xs:enumeration value="score-only"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="SurfaceTreatmentTypeValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="spot-uv"/>
+      <xs:enumeration value="hot-foil"/>
+      <xs:enumeration value="foil"/>
+      <xs:enumeration value="emboss"/>
+      <xs:enumeration value="deboss"/>
+      <xs:enumeration value="thermography"/>
+      <xs:enumeration value="soft-touch-laminate"/>
+      <xs:enumeration value="gloss-laminate"/>
+      <xs:enumeration value="matte-laminate"/>
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="varnish-gloss"/>
+      <xs:enumeration value="varnish-matte"/>
+      <xs:enumeration value="varnish-soft-touch"/>
+      <xs:enumeration value="uv-raised"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="FoilTypeValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="gold"/>
+      <xs:enumeration value="silver"/>
+      <xs:enumeration value="rose-gold"/>
+      <xs:enumeration value="holographic"/>
+      <xs:enumeration value="custom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EmbossDirectionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="up"/>
+      <xs:enumeration value="down"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Length with unit — e.g. "3mm", "0.25pt", "5mm" -->
+  <xs:simpleType name="LengthWithUnitType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]+(\.[0-9]+)?(mm|cm|in|pt|px|em)"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ============================================================
+       print:intent element and its children (used inside <manifest>)
+       ============================================================ -->
+
+  <xs:element name="intent" type="print:IntentType">
+    <xs:annotation>
+      <xs:documentation>
+        Declares the intended print production context for the document.
+        Required for Level 2 conformance. Should appear inside &lt;manifest&gt;.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="IntentType">
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="substrate"       type="print:SubstrateElementType"/>
+        <xs:element name="color-mode"      type="print:ColorModeElementType"/>
+        <xs:element name="resolution"      type="print:ResolutionElementType"/>
+        <xs:element name="icc-profile"     type="print:IccProfileRefType"/>
+        <xs:element name="press-type"      type="print:PressTypeElementType"/>
+        <xs:element name="ink-limits"      type="print:InkLimitsType"/>
+        <xs:element name="special-finish"  type="print:SpecialFinishElementType"/>
+        <xs:any namespace="##other" processContents="lax"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="SpecialFinishElementType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:anyAttribute namespace="##other" processContents="lax"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="SubstrateElementType">
+    <xs:simpleContent>
+      <xs:extension base="print:SubstrateType">
+        <xs:anyAttribute namespace="##other" processContents="lax"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="ColorModeElementType">
+    <xs:simpleContent>
+      <xs:extension base="print:ColorModeType">
+        <xs:anyAttribute namespace="##other" processContents="lax"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="ResolutionElementType">
+    <xs:attribute name="target"  type="print:ResolutionType" use="optional"/>
+    <xs:attribute name="minimum" type="print:ResolutionType" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="IccProfileRefType">
+    <xs:attribute name="ref" type="xs:NMTOKEN" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="PressTypeElementType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:anyAttribute namespace="##other" processContents="lax"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="InkLimitsType">
+    <xs:attribute name="total-area-coverage" type="xs:string" use="optional"/>
+    <xs:attribute name="black-generation"    type="xs:string" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       print:marks element and its children (used inside <canvas>)
+       ============================================================ -->
+
+  <xs:element name="marks" type="print:MarksType">
+    <xs:annotation>
+      <xs:documentation>
+        Container for print production marks (registration marks, crop marks,
+        color bars, info block). Placed as a direct child of &lt;canvas&gt;,
+        before &lt;layers&gt;. Rendered outside the trim boundary.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="MarksType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="registration-marks" type="print:RegistrationMarksType"/>
+      <xs:element name="crop-marks"         type="print:CropMarksType"/>
+      <xs:element name="color-bar"          type="print:ColorBarType"/>
+      <xs:element name="info-block"         type="print:InfoBlockType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="RegistrationMarksType">
+    <xs:attribute name="style"  type="print:RegistrationMarksStyleType" default="crosshair"/>
+    <xs:attribute name="offset" type="print:LengthWithUnitType"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="CropMarksType">
+    <xs:attribute name="length" type="print:LengthWithUnitType"/>
+    <xs:attribute name="weight" type="print:LengthWithUnitType"/>
+    <xs:attribute name="offset" type="print:LengthWithUnitType"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="ColorBarType">
+    <xs:attribute name="position" type="print:ColorBarPositionType"/>
+    <xs:attribute name="offset"   type="print:LengthWithUnitType"/>
+    <xs:attribute name="width"    type="print:LengthWithUnitType"/>
+    <xs:attribute name="colors"   type="xs:string"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="InfoBlockType">
+    <xs:sequence>
+      <xs:element name="info-field" type="print:InfoFieldType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="position" type="print:ColorBarPositionType"/>
+    <xs:attribute name="offset"   type="print:LengthWithUnitType"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="InfoFieldType">
+    <xs:attribute name="name"  type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       print:safe-zone (used inside <canvas>)
+       ============================================================ -->
+
+  <xs:element name="safe-zone" type="print:SafeZoneType">
+    <xs:annotation>
+      <xs:documentation>
+        Declares an advisory safe zone margin inside the trim boundary.
+        Used by design tools to indicate the region in which critical content
+        should be placed to protect against cutting variation.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="SafeZoneType">
+    <xs:attribute name="margin"  type="print:LengthWithUnitType" use="required"/>
+    <xs:attribute name="display" type="xs:string" default="advisory"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       print:cut-lines container and print:cut-line element
+       ============================================================ -->
+
+  <xs:element name="cut-lines" type="print:CutLinesType">
+    <xs:annotation>
+      <xs:documentation>
+        Contains multiple named cut-line elements, each defining an
+        independent die operation (e.g. full cut + kiss-cut on same piece).
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="CutLinesType">
+    <xs:sequence>
+      <xs:element name="cut-line" type="print:CutLineType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="CutLineType">
+    <xs:attribute name="id"   type="xs:NMTOKEN"          use="optional"/>
+    <xs:attribute name="path" type="xs:string"           use="required"/>
+    <xs:attribute name="type" type="print:DieCutTypeValue" default="cut"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       print:folds container and print:fold element
+       ============================================================ -->
+
+  <xs:element name="folds" type="print:FoldsType">
+    <xs:annotation>
+      <xs:documentation>
+        Contains fold line definitions for multi-panel documents (brochures, cards).
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="FoldsType">
+    <xs:sequence>
+      <xs:element name="fold" type="print:FoldType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="FoldType">
+    <xs:attribute name="id"    type="xs:NMTOKEN"       use="optional"/>
+    <xs:attribute name="path"  type="xs:string"        use="required"/>
+    <xs:attribute name="type"  type="print:FoldTypeValue" default="valley"/>
+    <xs:attribute name="angle" type="xs:string"        use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       print:surface-treatment element (used inside <layer>)
+       ============================================================ -->
+
+  <xs:element name="surface-treatment" type="print:SurfaceTreatmentElementType">
+    <xs:annotation>
+      <xs:documentation>
+        Declares a surface treatment applied to the enclosing layer or shape region.
+        Used as a child of a layer element to declare full-surface lamination, or
+        attached via the print:surface-treatment attribute on individual elements.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="SurfaceTreatmentElementType">
+    <xs:attribute name="type"      type="print:SurfaceTreatmentTypeValue" use="required"/>
+    <xs:attribute name="color"     type="xs:string"   use="optional"/>
+    <xs:attribute name="mask"      type="xs:string"   use="optional"/>
+    <xs:attribute name="plate-name" type="xs:string"  use="optional"/>
+    <xs:attribute name="foil-type" type="print:FoilTypeValue" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       Attribute group for canvas-level print attributes.
+       These are declared in the print: namespace and attached to
+       the default-namespace <canvas> element via xs:anyAttribute
+       in the main schema.
+       ============================================================ -->
+
+  <xs:attributeGroup name="CanvasPrintAttributes">
+    <xs:annotation>
+      <xs:documentation>
+        Attributes in the print: namespace that appear on the &lt;canvas&gt; element.
+        Used by the main schema via xs:anyAttribute lax processing.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="die-cut"      type="xs:boolean"               use="optional"/>
+    <xs:attribute name="die-cut-type" type="print:DieCutTypeValue"    use="optional"/>
+    <xs:attribute name="bleed"        type="print:LengthWithUnitType" use="optional"/>
+  </xs:attributeGroup>
+
+  <!-- ============================================================
+       Attribute group for layer-level print attributes.
+       ============================================================ -->
+
+  <xs:attributeGroup name="LayerPrintAttributes">
+    <xs:annotation>
+      <xs:documentation>
+        Attributes in the print: namespace that appear on &lt;layer&gt; elements.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="role"               type="print:PrintRoleType"            use="optional"/>
+    <xs:attribute name="visible-in-render"  type="xs:boolean"                     use="optional"/>
+    <xs:attribute name="overprint"          type="xs:boolean"                     use="optional"/>
+    <xs:attribute name="surface-treatment"  type="xs:string"                      use="optional"/>
+    <xs:attribute name="foil-type"          type="print:FoilTypeValue"            use="optional"/>
+    <xs:attribute name="emboss-depth"       type="print:LengthWithUnitType"       use="optional"/>
+    <xs:attribute name="emboss-direction"   type="print:EmbossDirectionType"      use="optional"/>
+  </xs:attributeGroup>
+
+  <!-- ============================================================
+       Attribute group for shape/image element print attributes.
+       ============================================================ -->
+
+  <xs:attributeGroup name="ElementPrintAttributes">
+    <xs:annotation>
+      <xs:documentation>
+        Attributes in the print: namespace that appear on shape, circle, rect,
+        line, path, image, and text-block elements.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="overprint"         type="xs:boolean" use="optional"/>
+    <xs:attribute name="surface-treatment" type="xs:string"  use="optional"/>
+    <xs:attribute name="resolution-check"  type="print:ResolutionType" use="optional"/>
+  </xs:attributeGroup>
+
+</xs:schema>

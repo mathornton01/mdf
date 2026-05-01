@@ -1,0 +1,935 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Main Schema — v0.1
+  Target namespace: https://morphousdoc.org/ns/0.1
+
+  This is the root schema for Morphous Document Format version 0.1.
+  It imports the three companion schemas:
+    • mdf-meta-0.1.xsd     — meta: namespace (https://morphousdoc.org/ns/meta/0.1)
+    • mdf-print-0.1.xsd    — print: namespace (https://morphousdoc.org/ns/print/0.1)
+    • mdf-semantics-0.1.xsd — sem: namespace (https://morphousdoc.org/ns/semantics/0.1)
+
+  Cross-namespace attributes on <canvas>, <layer>, and content elements
+  (print:die-cut, sem:shape-type, etc.) are handled via xs:anyAttribute with
+  processContents="lax" — the standard XSD pattern for foreign-namespace
+  attribute interop.
+
+  Specification reference: MDF v0.1, all chapters.
+-->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:mdf="https://morphousdoc.org/ns/0.1"
+  xmlns:meta="https://morphousdoc.org/ns/meta/0.1"
+  xmlns:print="https://morphousdoc.org/ns/print/0.1"
+  xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+  targetNamespace="https://morphousdoc.org/ns/0.1"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <!-- Import companion schemas -->
+  <xs:import namespace="https://morphousdoc.org/ns/meta/0.1"
+             schemaLocation="mdf-meta-0.1.xsd"/>
+  <xs:import namespace="https://morphousdoc.org/ns/print/0.1"
+             schemaLocation="mdf-print-0.1.xsd"/>
+  <xs:import namespace="https://morphousdoc.org/ns/semantics/0.1"
+             schemaLocation="mdf-semantics-0.1.xsd"/>
+
+  <!-- ============================================================
+       Simple types
+       ============================================================ -->
+
+  <!-- MDF version string — currently only "0.1" -->
+  <xs:simpleType name="MdfVersionType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]+\.[0-9]+(\.[0-9]+)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Canvas unit values (§3.2) -->
+  <xs:simpleType name="CanvasUnitsType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="mm"/>
+      <xs:enumeration value="cm"/>
+      <xs:enumeration value="in"/>
+      <xs:enumeration value="pt"/>
+      <xs:enumeration value="px"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Blend mode values (§6.2.2, §4.6.5) -->
+  <xs:simpleType name="BlendModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="normal"/>
+      <xs:enumeration value="multiply"/>
+      <xs:enumeration value="screen"/>
+      <xs:enumeration value="overlay"/>
+      <xs:enumeration value="darken"/>
+      <xs:enumeration value="lighten"/>
+      <xs:enumeration value="color-dodge"/>
+      <xs:enumeration value="color-burn"/>
+      <xs:enumeration value="hard-light"/>
+      <xs:enumeration value="soft-light"/>
+      <xs:enumeration value="difference"/>
+      <xs:enumeration value="exclusion"/>
+      <xs:enumeration value="hue"/>
+      <xs:enumeration value="saturation"/>
+      <xs:enumeration value="color"/>
+      <xs:enumeration value="luminosity"/>
+      <xs:enumeration value="dissolve"/>
+      <xs:enumeration value="pass-through"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Text alignment values -->
+  <xs:simpleType name="TextAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="start"/>
+      <xs:enumeration value="end"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="justify"/>
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="right"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Text direction values -->
+  <xs:simpleType name="DirectionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ltr"/>
+      <xs:enumeration value="rtl"/>
+      <xs:enumeration value="ttb"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Font weight values -->
+  <xs:simpleType name="FontWeightType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="100"/>
+      <xs:enumeration value="200"/>
+      <xs:enumeration value="300"/>
+      <xs:enumeration value="400"/>
+      <xs:enumeration value="500"/>
+      <xs:enumeration value="600"/>
+      <xs:enumeration value="700"/>
+      <xs:enumeration value="800"/>
+      <xs:enumeration value="900"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Font style values -->
+  <xs:simpleType name="FontStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="normal"/>
+      <xs:enumeration value="italic"/>
+      <xs:enumeration value="oblique"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Font format values -->
+  <xs:simpleType name="FontFormatType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="woff2"/>
+      <xs:enumeration value="woff"/>
+      <xs:enumeration value="otf"/>
+      <xs:enumeration value="ttf"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Color value — MDF supports hex, rgb, rgba, cmyk, lab, spot, device, gradient(),
+       pattern(), none, inherit, currentColor.  Validated as a loose string to avoid
+       over-constraining the schema; processors validate color syntax. -->
+  <xs:simpleType name="ColorValueType">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- SVG path data string (boundary, shape path, reflow region shape) -->
+  <xs:simpleType name="SvgPathDataType">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Opacity — float 0.0–1.0; stored as a string to permit XSD flexibility -->
+  <xs:simpleType name="OpacityType">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0.0"/>
+      <xs:maxInclusive value="1.0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Object-fit values (image element §6.5.2) -->
+  <xs:simpleType name="ObjectFitType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="fill"/>
+      <xs:enumeration value="contain"/>
+      <xs:enumeration value="cover"/>
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="scale-down"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Stroke line cap values -->
+  <xs:simpleType name="StrokeLinecapType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="butt"/>
+      <xs:enumeration value="round"/>
+      <xs:enumeration value="square"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Stroke line join values -->
+  <xs:simpleType name="StrokeLinejoinType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="miter"/>
+      <xs:enumeration value="round"/>
+      <xs:enumeration value="bevel"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Fill rule values -->
+  <xs:simpleType name="FillRuleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="nonzero"/>
+      <xs:enumeration value="evenodd"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Isolation values for group elements -->
+  <xs:simpleType name="IsolationType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="auto"/>
+      <xs:enumeration value="isolate"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Overflow mode for text-block -->
+  <xs:simpleType name="OverflowModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="clip"/>
+      <xs:enumeration value="link"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ============================================================
+       Root element: <mdf>
+       ============================================================ -->
+
+  <xs:element name="mdf" type="mdf:MdfType">
+    <xs:annotation>
+      <xs:documentation>
+        Root element of an MDF document. Must declare the default MDF namespace
+        and optionally the print:, sem:, and meta: namespaces. The version attribute
+        must be present and set to the MDF version (e.g. "0.1").
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="MdfType">
+    <xs:sequence>
+      <xs:element name="manifest" type="mdf:ManifestType"/>
+      <xs:choice>
+        <!-- Single-canvas document (most common) -->
+        <xs:element name="canvas"   type="mdf:CanvasType"/>
+        <!-- Multi-canvas document wrapper -->
+        <xs:element name="document" type="mdf:DocumentType"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="version" type="mdf:MdfVersionType" use="required"/>
+    <!-- Allow xmlns:* declarations and any other attributes from any namespace -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <manifest>
+       ============================================================ -->
+
+  <xs:complexType name="ManifestType">
+    <xs:annotation>
+      <xs:documentation>
+        Required child of the root mdf element. Contains metadata (meta: elements),
+        asset declarations (fonts, ICC profiles, spot colors, surface treatments),
+        conformance declaration, and print intent.
+        All sections are optional unless required by conformance level.
+
+        XSD 1.0 determinism note: mixing xs:element refs from imported namespaces
+        with xs:any in the same xs:choice is non-deterministic per the UPA
+        constraint. We therefore use a two-pass sequence: first a repeating choice
+        of all known local (default-namespace) elements, then a catch-all xs:any
+        for foreign namespaces. Foreign-namespace manifest children (meta:*, sem:*,
+        print:intent) are accepted by the second pass and validated laxly against
+        their imported schemas.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!--
+        The manifest allows children from the default MDF namespace (conformance,
+        assets, fonts, icc-profiles, spot-colors, surface-treatments, print-intent)
+        interleaved freely with children from the meta:, print:, sem:, and extension
+        namespaces in any order.
+
+        XSD 1.0 cannot express "any order, any namespace" with specific type
+        constraints without violating the Unique Particle Attribution rule when
+        mixing xs:element refs from multiple imported namespaces with xs:any in
+        the same xs:choice.  The practical solution used here is xs:any
+        namespace="##any" processContents="lax", which:
+          • accepts elements from any namespace in any order
+          • validates element content against the imported schema when the
+            schema can be located (i.e. all four companion schemas are validated)
+          • is the standard XSD 1.0 idiom for highly extensible containers
+
+        Specific element types (ConformanceType, FontsType, etc.) remain defined
+        in this schema and are used by validators and code generators that process
+        the schema programmatically. They are also referenced from the AssetsType,
+        FontsType, etc. complex types which appear as named choices elsewhere.
+      -->
+      <xs:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <conformance> in the default namespace (as used in circle-resume.mdf) -->
+  <xs:complexType name="ConformanceType">
+    <xs:annotation>
+      <xs:documentation>
+        Declares the conformance level that the document author intends.
+        level: numeric (1,2,3) or symbolic (basic, screen, print, archive).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="level" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="1"/>
+          <xs:enumeration value="2"/>
+          <xs:enumeration value="3"/>
+          <xs:enumeration value="basic"/>
+          <xs:enumeration value="screen"/>
+          <xs:enumeration value="print"/>
+          <xs:enumeration value="archive"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       Asset declarations inside <manifest>
+       ============================================================ -->
+
+  <!-- <assets> wrapper (shorthand; the spec also uses <fonts>, <icc-profiles>, etc.) -->
+  <xs:complexType name="AssetsType">
+    <xs:annotation>
+      <xs:documentation>
+        Shorthand container for all asset declarations when not using the
+        dedicated fonts/icc-profiles/spot-colors sections.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="font"               type="mdf:FontType"/>
+      <xs:element name="icc-profile"        type="mdf:IccProfileType"/>
+      <xs:element name="spot-color"         type="mdf:SpotColorType"/>
+      <xs:element name="surface-treatment"  type="mdf:SurfaceTreatmentDeclType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <fonts> section -->
+  <xs:complexType name="FontsType">
+    <xs:sequence>
+      <xs:element name="font" type="mdf:FontType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <font> declaration (§2.5.1) -->
+  <xs:complexType name="FontType">
+    <xs:annotation>
+      <xs:documentation>
+        Declares a font face for use in text-block and inline elements.
+        id is unique within the document and referenced via font-ref.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="id"     type="xs:NMTOKEN"        use="required"/>
+    <xs:attribute name="family" type="xs:string"         use="required"/>
+    <xs:attribute name="weight" type="mdf:FontWeightType" use="optional" default="400"/>
+    <xs:attribute name="style"  type="mdf:FontStyleType"  use="optional" default="normal"/>
+    <xs:attribute name="src"    type="xs:string"          use="required"/>
+    <xs:attribute name="format" type="mdf:FontFormatType" use="optional" default="woff2"/>
+    <xs:attribute name="embed"  type="xs:boolean"         use="optional" default="false"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <icc-profiles> section -->
+  <xs:complexType name="IccProfilesType">
+    <xs:sequence>
+      <xs:element name="icc-profile" type="mdf:IccProfileType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <icc-profile> declaration (§2.6.1) -->
+  <xs:complexType name="IccProfileType">
+    <xs:attribute name="id"          type="xs:NMTOKEN" use="required"/>
+    <xs:attribute name="src"         type="xs:string"  use="required"/>
+    <xs:attribute name="description" type="xs:string"  use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <spot-colors> section -->
+  <xs:complexType name="SpotColorsType">
+    <xs:sequence>
+      <xs:element name="spot-color" type="mdf:SpotColorType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <spot-color> declaration (§2.7.1) -->
+  <xs:complexType name="SpotColorType">
+    <xs:attribute name="id"         type="xs:NMTOKEN" use="required"/>
+    <xs:attribute name="name"       type="xs:string"  use="required"/>
+    <xs:attribute name="cmyk"       type="xs:string"  use="optional"/>
+    <!-- cmyk-approximation is an alias used in some spec examples -->
+    <xs:attribute name="cmyk-approximation" type="xs:string" use="optional"/>
+    <xs:attribute name="lab"        type="xs:string"  use="optional"/>
+    <xs:attribute name="plate-name" type="xs:string"  use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <surface-treatments> section -->
+  <xs:complexType name="SurfaceTreatmentsType">
+    <xs:sequence>
+      <xs:element name="surface-treatment" type="mdf:SurfaceTreatmentDeclType"
+                  minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <surface-treatment> manifest declaration (§4.7.2) -->
+  <xs:complexType name="SurfaceTreatmentDeclType">
+    <xs:attribute name="id"        type="xs:NMTOKEN" use="required"/>
+    <xs:attribute name="type"      type="xs:string"  use="required"/>
+    <xs:attribute name="foil-type" type="xs:string"  use="optional"/>
+    <xs:attribute name="foil-name" type="xs:string"  use="optional"/>
+    <xs:attribute name="depth"     type="xs:string"  use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <print-intent> in the default namespace (flat attribute form, §2.8) -->
+  <xs:complexType name="PrintIntentType">
+    <xs:annotation>
+      <xs:documentation>
+        Flat-attribute form of print intent declaration (Chapter 2, §2.8).
+        Alternative to the child-element form using print:intent.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="substrate"         type="xs:string" use="optional"/>
+    <xs:attribute name="color-mode"        type="xs:string" use="optional"/>
+    <xs:attribute name="icc-profile-ref"   type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="resolution-target" type="xs:string" use="optional"/>
+    <xs:attribute name="press-type"        type="xs:string" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <document> wrapper for multi-page documents (§3.7)
+       ============================================================ -->
+
+  <xs:complexType name="DocumentType">
+    <xs:annotation>
+      <xs:documentation>
+        Multi-canvas document wrapper. Each child canvas is an independent page.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="canvas" type="mdf:CanvasType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:NMTOKEN" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <canvas>
+       ============================================================ -->
+
+  <xs:complexType name="CanvasType">
+    <xs:annotation>
+      <xs:documentation>
+        The root geometric container of an MDF document. Defines physical dimensions,
+        boundary path (document shape), coordinate space, and print geometry.
+        Cross-namespace attributes (print:die-cut, sem:shape-type, etc.) are
+        validated laxly via anyAttribute.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!-- Optional defs section for gradients and patterns -->
+      <xs:element name="defs"       type="mdf:DefsType"         minOccurs="0" maxOccurs="1"/>
+      <!-- Print marks outside trim (§9.4) -->
+      <xs:element ref="print:marks" minOccurs="0" maxOccurs="1"/>
+      <!-- Safe zone advisory marker -->
+      <xs:element ref="print:safe-zone" minOccurs="0" maxOccurs="1"/>
+      <!-- Multiple cut lines for complex die patterns -->
+      <xs:element ref="print:cut-lines" minOccurs="0" maxOccurs="1"/>
+      <!-- Fold lines for multi-panel documents -->
+      <xs:element ref="print:folds"    minOccurs="0" maxOccurs="1"/>
+      <!-- Layers container (required for content) -->
+      <xs:element name="layers"     type="mdf:LayersType"        minOccurs="0" maxOccurs="1"/>
+      <!-- Extension hook -->
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <!-- Core canvas attributes (§3.2) -->
+    <xs:attribute name="id"       type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="width"    type="xs:string"  use="required"/>
+    <xs:attribute name="height"   type="xs:string"  use="required"/>
+    <xs:attribute name="units"    type="mdf:CanvasUnitsType" use="required"/>
+    <xs:attribute name="boundary" type="mdf:SvgPathDataType" use="optional"/>
+    <!--
+      Cross-namespace attributes (print:die-cut, print:bleed, print:die-cut-type,
+      sem:shape-type, sem:shape-meaning, sem:shape-meaning-iri, sem:shape-context)
+      are handled by the wildcard below.  XSD does not allow attribute references
+      across namespaces in the same complexType declaration without wildcards.
+    -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <defs> — gradient and pattern resource definitions (§4.4, §4.5)
+       ============================================================ -->
+
+  <xs:complexType name="DefsType">
+    <xs:annotation>
+      <xs:documentation>
+        Named resource definitions: gradients and patterns. May appear as the
+        first child of &lt;canvas&gt;. Elements here are referenced by id via
+        gradient() and pattern() paint functions.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="gradient" type="mdf:GradientType"/>
+      <xs:element name="pattern"  type="mdf:PatternType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <gradient> wrapper (§4.4) -->
+  <xs:complexType name="GradientType">
+    <xs:choice>
+      <xs:element name="linear-gradient" type="mdf:LinearGradientType"/>
+      <xs:element name="radial-gradient" type="mdf:RadialGradientType"/>
+      <xs:element name="mesh-gradient"   type="mdf:MeshGradientType"/>
+    </xs:choice>
+    <xs:attribute name="id" type="xs:NMTOKEN" use="required"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <linear-gradient> (§4.4.1) -->
+  <xs:complexType name="LinearGradientType">
+    <xs:sequence>
+      <xs:element name="stop" type="mdf:GradientStopType" minOccurs="2" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="x1"             type="xs:decimal" use="optional" default="0"/>
+    <xs:attribute name="y1"             type="xs:decimal" use="optional" default="0"/>
+    <xs:attribute name="x2"             type="xs:decimal" use="optional" default="1"/>
+    <xs:attribute name="y2"             type="xs:decimal" use="optional" default="0"/>
+    <xs:attribute name="angle"          type="xs:decimal" use="optional"/>
+    <xs:attribute name="gradientUnits"  type="xs:string"  use="optional" default="boundingBox"/>
+    <xs:attribute name="spreadMethod"   type="xs:string"  use="optional" default="pad"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <radial-gradient> (§4.4.2) -->
+  <xs:complexType name="RadialGradientType">
+    <xs:sequence>
+      <xs:element name="stop" type="mdf:GradientStopType" minOccurs="2" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="cx"             type="xs:decimal" use="optional" default="0.5"/>
+    <xs:attribute name="cy"             type="xs:decimal" use="optional" default="0.5"/>
+    <xs:attribute name="r"              type="xs:decimal" use="optional" default="0.5"/>
+    <xs:attribute name="fx"             type="xs:decimal" use="optional"/>
+    <xs:attribute name="fy"             type="xs:decimal" use="optional"/>
+    <xs:attribute name="gradientUnits"  type="xs:string"  use="optional" default="boundingBox"/>
+    <xs:attribute name="spreadMethod"   type="xs:string"  use="optional" default="pad"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <mesh-gradient> (§4.4.3) — Level 3 only, structure is open -->
+  <xs:complexType name="MeshGradientType">
+    <xs:sequence>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="rows" type="xs:positiveInteger" use="optional"/>
+    <xs:attribute name="cols" type="xs:positiveInteger" use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <stop> inside gradients -->
+  <xs:complexType name="GradientStopType">
+    <xs:attribute name="offset"  type="xs:decimal"          use="required"/>
+    <xs:attribute name="color"   type="mdf:ColorValueType"  use="required"/>
+    <xs:attribute name="opacity" type="mdf:OpacityType"     use="optional" default="1.0"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <pattern> (§4.5) -->
+  <xs:complexType name="PatternType">
+    <xs:sequence>
+      <xs:group ref="mdf:ShapeContentGroup" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id"                  type="xs:NMTOKEN" use="required"/>
+    <xs:attribute name="width"               type="xs:decimal"  use="required"/>
+    <xs:attribute name="height"              type="xs:decimal"  use="required"/>
+    <xs:attribute name="units"               type="xs:string"   use="optional"/>
+    <xs:attribute name="patternContentUnits" type="xs:string"   use="optional"/>
+    <xs:attribute name="patternTransform"    type="xs:string"   use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <layers> and <layer>
+       ============================================================ -->
+
+  <xs:complexType name="LayersType">
+    <xs:sequence>
+      <xs:element name="layer" type="mdf:LayerType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="LayerType">
+    <xs:annotation>
+      <xs:documentation>
+        A named compositing layer. Contents composite in document order (first=bottom).
+        Cross-namespace attributes (print:role, sem:role, etc.) handled via anyAttribute.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!-- Print surface-treatment element applied to entire layer -->
+      <xs:element ref="print:surface-treatment" minOccurs="0" maxOccurs="1"/>
+      <!-- Content elements in any order -->
+      <xs:group ref="mdf:LayerContentGroup" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id"         type="xs:NMTOKEN"       use="optional"/>
+    <xs:attribute name="blend-mode" type="mdf:BlendModeType" use="optional" default="normal"/>
+    <xs:attribute name="opacity"    type="mdf:OpacityType"   use="optional" default="1.0"/>
+    <xs:attribute name="visible"    type="xs:boolean"        use="optional" default="true"/>
+    <xs:attribute name="lock"       type="xs:boolean"        use="optional" default="false"/>
+    <!--
+      print:role, print:visible-in-render, print:overprint, print:surface-treatment,
+      print:foil-type, print:emboss-depth, print:emboss-direction and
+      sem:role, sem:reading-order, sem:decorative are all handled below.
+    -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       Content element groups
+       ============================================================ -->
+
+  <!--
+    LayerContentGroup: all elements that may appear as children of a <layer>.
+    Per §6.3: text-block, image, shape, group, layer (nested).
+    The example also uses circle, rect, line, path directly in layers.
+  -->
+  <xs:group name="LayerContentGroup">
+    <xs:choice>
+      <xs:element name="text-block"  type="mdf:TextBlockType"/>
+      <xs:element name="image"       type="mdf:ImageType"/>
+      <xs:element name="shape"       type="mdf:ShapeType"/>
+      <xs:element name="group"       type="mdf:GroupType"/>
+      <xs:element name="layer"       type="mdf:LayerType"/>
+      <!-- Primitive shape shortcuts (SVG-style convenience elements) -->
+      <xs:element name="circle"      type="mdf:CircleType"/>
+      <xs:element name="ellipse"     type="mdf:EllipseType"/>
+      <xs:element name="rect"        type="mdf:RectType"/>
+      <xs:element name="line"        type="mdf:LineType"/>
+      <xs:element name="path"        type="mdf:PathType"/>
+      <!-- Extension hook -->
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+  </xs:group>
+
+  <!--
+    ShapeContentGroup: subset used inside <group> and <pattern>
+    (same as LayerContentGroup minus nested layer).
+  -->
+  <xs:group name="ShapeContentGroup">
+    <xs:choice>
+      <xs:element name="text-block"  type="mdf:TextBlockType"/>
+      <xs:element name="image"       type="mdf:ImageType"/>
+      <xs:element name="shape"       type="mdf:ShapeType"/>
+      <xs:element name="group"       type="mdf:GroupType"/>
+      <xs:element name="circle"      type="mdf:CircleType"/>
+      <xs:element name="ellipse"     type="mdf:EllipseType"/>
+      <xs:element name="rect"        type="mdf:RectType"/>
+      <xs:element name="line"        type="mdf:LineType"/>
+      <xs:element name="path"        type="mdf:PathType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+  </xs:group>
+
+  <!-- ============================================================
+       Common attribute group for fill / stroke / compositing
+       ============================================================ -->
+
+  <xs:attributeGroup name="PaintAttributes">
+    <xs:attribute name="fill"              type="mdf:ColorValueType"   use="optional"/>
+    <xs:attribute name="fill-rule"         type="mdf:FillRuleType"     use="optional" default="nonzero"/>
+    <xs:attribute name="stroke"            type="mdf:ColorValueType"   use="optional"/>
+    <xs:attribute name="stroke-width"      type="xs:string"            use="optional"/>
+    <xs:attribute name="stroke-linecap"    type="mdf:StrokeLinecapType" use="optional" default="butt"/>
+    <xs:attribute name="stroke-linejoin"   type="mdf:StrokeLinejoinType" use="optional" default="miter"/>
+    <xs:attribute name="stroke-miterlimit" type="xs:decimal"           use="optional" default="4"/>
+    <xs:attribute name="stroke-dasharray"  type="xs:string"            use="optional"/>
+    <xs:attribute name="stroke-dashoffset" type="xs:string"            use="optional"/>
+    <xs:attribute name="opacity"           type="mdf:OpacityType"      use="optional" default="1.0"/>
+    <xs:attribute name="blend-mode"        type="mdf:BlendModeType"    use="optional" default="normal"/>
+  </xs:attributeGroup>
+
+  <!-- ============================================================
+       Primitive shape elements
+       The example uses circle/rect/line/path directly inside layers.
+       These mirror SVG conventions but are MDF content elements.
+       ============================================================ -->
+
+  <!-- <circle> -->
+  <xs:complexType name="CircleType">
+    <xs:attribute name="id"        type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="cx"        type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="cy"        type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="r"         type="xs:string"  use="required"/>
+    <xs:attribute name="transform" type="xs:string"  use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <ellipse> -->
+  <xs:complexType name="EllipseType">
+    <xs:attribute name="id"        type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="cx"        type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="cy"        type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="rx"        type="xs:string"  use="required"/>
+    <xs:attribute name="ry"        type="xs:string"  use="required"/>
+    <xs:attribute name="transform" type="xs:string"  use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <rect> -->
+  <xs:complexType name="RectType">
+    <xs:attribute name="id"        type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="x"         type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="y"         type="xs:string"  use="optional" default="0"/>
+    <xs:attribute name="width"     type="xs:string"  use="required"/>
+    <xs:attribute name="height"    type="xs:string"  use="required"/>
+    <xs:attribute name="rx"        type="xs:string"  use="optional"/>
+    <xs:attribute name="ry"        type="xs:string"  use="optional"/>
+    <xs:attribute name="transform" type="xs:string"  use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <line> -->
+  <xs:complexType name="LineType">
+    <xs:attribute name="id"        type="xs:NMTOKEN" use="optional"/>
+    <xs:attribute name="x1"        type="xs:string"  use="required"/>
+    <xs:attribute name="y1"        type="xs:string"  use="required"/>
+    <xs:attribute name="x2"        type="xs:string"  use="required"/>
+    <xs:attribute name="y2"        type="xs:string"  use="required"/>
+    <xs:attribute name="transform" type="xs:string"  use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <path> -->
+  <xs:complexType name="PathType">
+    <xs:attribute name="id"        type="xs:NMTOKEN"         use="optional"/>
+    <xs:attribute name="d"         type="mdf:SvgPathDataType" use="required"/>
+    <xs:attribute name="transform" type="xs:string"           use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <shape> — general vector shape element (§6.4)
+       ============================================================ -->
+
+  <xs:complexType name="ShapeType">
+    <xs:annotation>
+      <xs:documentation>
+        Fundamental vector graphics primitive. Represents a single filled
+        and/or stroked SVG path. path and boundary are both accepted for
+        the path data (spec uses "path"; some examples use "boundary").
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="id"          type="xs:NMTOKEN"         use="optional"/>
+    <xs:attribute name="path"        type="mdf:SvgPathDataType" use="optional"/>
+    <!-- boundary is an alias used in some spec examples -->
+    <xs:attribute name="boundary"    type="mdf:SvgPathDataType" use="optional"/>
+    <xs:attributeGroup ref="mdf:PaintAttributes"/>
+    <!-- Cross-namespace print/sem attributes via wildcard -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <image> (§6.5)
+       ============================================================ -->
+
+  <xs:complexType name="ImageType">
+    <xs:annotation>
+      <xs:documentation>
+        Places a raster or vector image asset within the layer.
+        src may be a relative path, absolute URL, data URI, or mdfx: asset ID.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="id"               type="xs:NMTOKEN"          use="optional"/>
+    <xs:attribute name="src"              type="xs:string"            use="required"/>
+    <xs:attribute name="x"                type="xs:string"            use="required"/>
+    <xs:attribute name="y"                type="xs:string"            use="required"/>
+    <xs:attribute name="width"            type="xs:string"            use="required"/>
+    <xs:attribute name="height"           type="xs:string"            use="required"/>
+    <xs:attribute name="object-fit"       type="mdf:ObjectFitType"    use="optional" default="fill"/>
+    <xs:attribute name="object-position"  type="xs:string"            use="optional" default="center center"/>
+    <xs:attribute name="opacity"          type="mdf:OpacityType"      use="optional" default="1.0"/>
+    <xs:attribute name="blend-mode"       type="mdf:BlendModeType"    use="optional" default="normal"/>
+    <xs:attribute name="clip-to-boundary" type="xs:boolean"           use="optional" default="true"/>
+    <xs:attribute name="clip-path"        type="mdf:SvgPathDataType"  use="optional"/>
+    <!-- sem:alt-text, sem:role, sem:description, print:resolution-check via wildcard -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <group> (§6.6)
+       ============================================================ -->
+
+  <xs:complexType name="GroupType">
+    <xs:annotation>
+      <xs:documentation>
+        Aggregates child elements into a single compositing unit.
+        Applies a shared transform, opacity, and blend mode.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:group ref="mdf:ShapeContentGroup" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id"         type="xs:NMTOKEN"    use="optional"/>
+    <xs:attribute name="opacity"    type="mdf:OpacityType" use="optional" default="1.0"/>
+    <xs:attribute name="blend-mode" type="mdf:BlendModeType" use="optional" default="normal"/>
+    <xs:attribute name="transform"  type="xs:string"     use="optional"/>
+    <xs:attribute name="clip-path"  type="xs:string"     use="optional"/>
+    <xs:attribute name="isolation"  type="mdf:IsolationType" use="optional" default="auto"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- ============================================================
+       <text-block> (§5.2)
+       ============================================================ -->
+
+  <xs:complexType name="TextBlockType">
+    <xs:annotation>
+      <xs:documentation>
+        A block of text that reflows within an arbitrary shape boundary.
+        Must contain one reflow-region child. Text content is carried by
+        p (paragraph) children.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="reflow-region" type="mdf:ReflowRegionType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="overflow"      type="mdf:OverflowType"      minOccurs="0" maxOccurs="1"/>
+      <xs:element name="p"             type="mdf:ParagraphType"     minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <!-- Text block attributes (§5.2.1) -->
+    <xs:attribute name="id"           type="xs:NMTOKEN"         use="optional"/>
+    <xs:attribute name="font-ref"     type="xs:NMTOKEN"         use="optional"/>
+    <xs:attribute name="size"         type="xs:string"          use="optional"/>
+    <xs:attribute name="leading"      type="xs:string"          use="optional"/>
+    <xs:attribute name="language"     type="xs:string"          use="optional"/>
+    <xs:attribute name="text-align"   type="mdf:TextAlignType"  use="optional" default="start"/>
+    <xs:attribute name="direction"    type="mdf:DirectionType"  use="optional" default="ltr"/>
+    <xs:attribute name="column-count" type="xs:positiveInteger" use="optional" default="1"/>
+    <xs:attribute name="column-gap"   type="xs:string"          use="optional" default="1em"/>
+    <xs:attribute name="orphans"      type="xs:positiveInteger" use="optional" default="2"/>
+    <xs:attribute name="widows"       type="xs:positiveInteger" use="optional" default="2"/>
+    <xs:attribute name="color"        type="mdf:ColorValueType" use="optional"/>
+    <xs:attribute name="opacity"      type="mdf:OpacityType"   use="optional" default="1.0"/>
+    <!-- tracking: letter-spacing with unit, e.g. "0.15em" -->
+    <xs:attribute name="tracking"     type="xs:string"         use="optional"/>
+    <!-- style: text style hint, e.g. "italic" -->
+    <xs:attribute name="style"        type="xs:string"         use="optional"/>
+    <!-- sem:role, sem:reading-order, sem:heading-level, sem:lang,
+         print:surface-treatment are handled via wildcard -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <reflow-region> (§5.3) -->
+  <xs:complexType name="ReflowRegionType">
+    <xs:annotation>
+      <xs:documentation>
+        Defines the shape that text flows within. Must have either shape (inline
+        SVG path) or shape-ref (id reference), but not both. The reserved value
+        shape-ref="canvas-boundary" instructs the renderer to use the canvas boundary.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="shape"          type="mdf:SvgPathDataType" use="optional"/>
+    <xs:attribute name="shape-ref"      type="xs:string"           use="optional"/>
+    <xs:attribute name="padding"        type="xs:string"           use="optional"/>
+    <xs:attribute name="padding-top"    type="xs:string"           use="optional"/>
+    <xs:attribute name="padding-right"  type="xs:string"           use="optional"/>
+    <xs:attribute name="padding-bottom" type="xs:string"           use="optional"/>
+    <xs:attribute name="padding-left"   type="xs:string"           use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <overflow> for linked text flow (§5.4.4) -->
+  <xs:complexType name="OverflowType">
+    <xs:attribute name="mode"   type="mdf:OverflowModeType" use="optional" default="clip"/>
+    <xs:attribute name="target" type="xs:NMTOKEN"           use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <p> paragraph element inside text-block -->
+  <xs:complexType name="ParagraphType" mixed="true">
+    <xs:annotation>
+      <xs:documentation>
+        A paragraph of text. May carry inline style overrides and contain
+        span elements for further inline styling.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="span" type="mdf:SpanType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+    <xs:attribute name="font-ref"   type="xs:NMTOKEN"        use="optional"/>
+    <xs:attribute name="size"       type="xs:string"         use="optional"/>
+    <xs:attribute name="leading"    type="xs:string"         use="optional"/>
+    <xs:attribute name="color"      type="mdf:ColorValueType" use="optional"/>
+    <xs:attribute name="text-align" type="mdf:TextAlignType" use="optional"/>
+    <!-- print:surface-treatment on paragraph level -->
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <!-- <span> inline element inside <p> -->
+  <xs:complexType name="SpanType" mixed="true">
+    <xs:annotation>
+      <xs:documentation>
+        Inline text span with optional style overrides. May nest within p elements.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="span" type="mdf:SpanType"/>
+      <xs:any namespace="##other" processContents="lax"/>
+    </xs:choice>
+    <xs:attribute name="font-ref" type="xs:NMTOKEN"        use="optional"/>
+    <xs:attribute name="size"     type="xs:string"         use="optional"/>
+    <xs:attribute name="color"    type="mdf:ColorValueType" use="optional"/>
+    <xs:attribute name="style"    type="xs:string"         use="optional"/>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+</xs:schema>

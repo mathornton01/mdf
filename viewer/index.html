@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MDF Viewer — Morphous Document Format</title>
+  <style>
+    /* ===== Design System ===== */
+    :root {
+      --bg:         #0f1117;
+      --surface:    #181b24;
+      --surface-2:  #1e2130;
+      --border:     #2a2e3e;
+      --border-2:   #353a52;
+      --text:       #e8eaf0;
+      --text-muted: #8890a8;
+      --text-dim:   #555d78;
+      --accent:     #6c7dff;
+      --accent-2:   #8b6fff;
+      --accent-glow:rgba(108,125,255,0.15);
+      --success:    #3dd68c;
+      --warn:       #f0a050;
+      --danger:     #ff5e6d;
+      --radius:     10px;
+      --radius-lg:  16px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.5);
+      --shadow-lg:  0 8px 48px rgba(0,0,0,0.7);
+      --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg:         #f0f2f8;
+        --surface:    #ffffff;
+        --surface-2:  #f5f6fa;
+        --border:     #d8dae8;
+        --border-2:   #c0c4d8;
+        --text:       #1a1d2e;
+        --text-muted: #5a6080;
+        --text-dim:   #9099b8;
+        --accent:     #4a5af0;
+        --accent-2:   #7b5fff;
+        --accent-glow:rgba(74,90,240,0.1);
+        --shadow:     0 4px 24px rgba(0,0,0,0.1);
+        --shadow-lg:  0 8px 48px rgba(0,0,0,0.15);
+      }
+    }
+
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    #app {
+      display: grid;
+      grid-template-rows: 56px 1fr;
+      grid-template-columns: 1fr 300px;
+      height: 100vh;
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    #canvas-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      background: var(--bg);
+      background-image:
+        radial-gradient(circle at 25% 25%, rgba(108,125,255,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(139,111,255,0.03) 0%, transparent 50%);
+      position: relative;
+    }
+    #sidebar {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== Header ===== */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+    .header-spacer { flex: 1; }
+    #open-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition);
+      font-family: var(--font-sans);
+    }
+    #open-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    #open-btn:active { transform: translateY(0); }
+    #file-input { display: none; }
+
+    /* ===== Drop zone / welcome ===== */
+    #welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      width: 100%;
+      height: 100%;
+      padding: 40px;
+    }
+    #drop-zone {
+      width: 100%;
+      max-width: 520px;
+      border: 2px dashed var(--border-2);
+      border-radius: var(--radius-lg);
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition), transform var(--transition);
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      transform: translateY(-2px);
+    }
+    #drop-zone.drag-over { border-style: solid; }
+    .drop-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      opacity: 0.5;
+    }
+    .drop-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .drop-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .drop-ext {
+      display: inline-block;
+      padding: 3px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* ===== Feature cards ===== */
+    .feature-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .feature-card-icon { font-size: 20px; margin-bottom: 8px; }
+    .feature-card-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.02em; }
+    .feature-card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+    /* ===== Viewer canvas ===== */
+    #viewer { display: none; width: 100%; height: 100%; position: relative; }
+    #viewer.active { display: flex; align-items: center; justify-content: center; }
+    #svg-output {
+      display: block;
+      filter: drop-shadow(0 8px 48px rgba(0,0,0,0.6));
+      transition: transform var(--transition);
+    }
+
+    /* ===== Zoom controls ===== */
+    #zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 6px 10px;
+      box-shadow: var(--shadow);
+    }
+    .zoom-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition);
+      font-family: var(--font-sans);
+    }
+    .zoom-btn:hover { background: var(--surface-2); }
+    #zoom-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-width: 44px;
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .sidebar-content::-webkit-scrollbar { width: 4px; }
+    .sidebar-content::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+    /* ===== Info sections ===== */
+    .info-section {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .info-section-title {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 72px;
+      padding-top: 1px;
+    }
+    .info-val {
+      color: var(--text);
+      font-weight: 500;
+      word-break: break-word;
+    }
+    .info-val.mono { font-family: var(--font-mono); font-size: 11px; }
+
+    /* ===== Shape badge ===== */
+    .shape-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 7px;
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-glow);
+      border: 1px solid rgba(108,125,255,0.25);
+      color: var(--accent);
+    }
+
+    /* ===== Layer list ===== */
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .layer-item:last-child { border-bottom: none; }
+    .layer-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .layer-name { flex: 1; font-weight: 500; }
+    .layer-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ===== Error state ===== */
+    #error-banner {
+      display: none;
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,94,109,0.15);
+      border: 1px solid rgba(255,94,109,0.4);
+      color: var(--danger);
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      max-width: 480px;
+      text-align: center;
+      z-index: 100;
+    }
+    #error-banner.show { display: block; }
+
+    /* ===== No-doc sidebar ===== */
+    #sidebar-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+    #sidebar-info { display: none; flex-direction: column; overflow: hidden; }
+    #sidebar-info.active { display: flex; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 700px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 56px 1fr auto;
+      }
+      #sidebar {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        max-height: 220px;
+      }
+      .feature-cards { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Animations ===== */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s var(--transition) both; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .loading { animation: pulse 1.2s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 1L16.5 5.5V12.5L9 17L1.5 12.5V5.5L9 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="9" cy="9" r="2.5" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">MDF Viewer</div>
+        <div class="logo-sub">Morphous Document Format</div>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <button id="open-btn" onclick="document.getElementById('file-input').click()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M1 10.5V11.5C1 12.05 1.45 12.5 2 12.5H12C12.55 12.5 13 12.05 13 11.5V10.5M7 1.5V9M7 9L4 6M7 9L10 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Open .mdf File
+    </button>
+    <input type="file" id="file-input" accept=".mdf,.xml" />
+  </header>
+
+  <!-- Canvas / Welcome area -->
+  <div id="canvas-area">
+    <div id="error-banner"></div>
+
+    <!-- Welcome / drop zone -->
+    <div id="welcome">
+      <div id="drop-zone" role="button" tabindex="0" aria-label="Drop MDF file here or click to browse">
+        <svg class="drop-icon" viewBox="0 0 64 64" fill="none">
+          <path d="M32 4 L56 16 L56 48 L32 60 L8 48 L8 16 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" opacity="0.4"/>
+          <path d="M32 4 L56 16 L32 28 L8 16 Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" opacity="0.6"/>
+          <path d="M32 28 L32 60" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+          <path d="M32 36 L26 30 M32 36 L38 30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="drop-title">Drop an MDF document here</div>
+        <div class="drop-sub">or click to browse your files</div>
+        <span class="drop-ext">.mdf</span>
+      </div>
+
+      <div class="feature-cards">
+        <div class="feature-card">
+          <div class="feature-card-icon">⬡</div>
+          <div class="feature-card-title">Any Shape</div>
+          <div class="feature-card-desc">Documents defined by arbitrary SVG boundary paths — circles, stars, hexagons, custom outlines</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">⬤</div>
+          <div class="feature-card-title">Shape Reflow</div>
+          <div class="feature-card-desc">Text flows inside the document shape with precision scanline tessellation</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">◈</div>
+          <div class="feature-card-title">Print-Ready</div>
+          <div class="feature-card-desc">CMYK colors, die-cut specs, bleed zones, spot color plates — all first-class</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SVG rendering target -->
+    <div id="viewer">
+      <svg id="svg-output" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="zoom-controls">
+        <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+        <span id="zoom-label">100%</span>
+        <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+        <button class="zoom-btn" id="zoom-fit" title="Fit to window" style="font-size:12px">⊡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-header">Document Info</div>
+    <div id="sidebar-empty">Open an .mdf file<br>to see metadata</div>
+    <div id="sidebar-info" class="sidebar-content"></div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// =====================================================================
+// MDF Viewer — Core Engine
+// =====================================================================
+
+// --- Namespace URIs ---
+const NS = {
+  MDF:  'https://morphousdoc.org/ns/0.1',
+  SEM:  'https://morphousdoc.org/ns/semantics/0.1',
+  META: 'https://morphousdoc.org/ns/meta/0.1',
+  PRINT:'https://morphousdoc.org/ns/print/0.1',
+};
+
+// =====================================================================
+// Color Parser
+// Handles: color(cmyk C M Y K), color(gray V), #rrggbb, rgb(...),
+//          rgba(...), cmyk(...), none, transparent
+// =====================================================================
+function parseMDFColor(value) {
+  if (!value || value === 'none' || value === 'transparent') return value;
+  value = value.trim();
+
+  // color(cmyk C M Y K)
+  const cmykFn = value.match(/^color\(\s*cmyk\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/i);
+  if (cmykFn) {
+    const [,c,m,y,k] = cmykFn.map(Number);
+    return cmykToRgb(c, m, y, k);
+  }
+
+  // color(gray V)
+  const grayFn = value.match(/^color\(\s*gray\s+([\d.]+)\s*\)$/i);
+  if (grayFn) {
+    const v = Math.round(parseFloat(grayFn[1]) * 255);
+    return `rgb(${v},${v},${v})`;
+  }
+
+  // cmyk(C M Y K) — bare notation
+  const cmykBare = value.match(/^cmyk\(\s*([\d.]+)[,\s]\s*([\d.]+)[,\s]\s*([\d.]+)[,\s]\s*([\d.]+)\s*\)$/i);
+  if (cmykBare) {
+    const [,c,m,y,k] = cmykBare.map(Number);
+    return cmykToRgb(c, m, y, k);
+  }
+
+  // rgb(...) / rgba(...)
+  if (/^rgba?\(/.test(value)) return value; // pass through
+
+  // #hex
+  if (value.startsWith('#')) return value;
+
+  // lab(L a b) — approximate via rough sRGB
+  const labFn = value.match(/^lab\(\s*([\d.]+)\s*,?\s*([-\d.]+)\s*,?\s*([-\d.]+)\s*\)$/i);
+  if (labFn) return labToRgb(parseFloat(labFn[1]), parseFloat(labFn[2]), parseFloat(labFn[3]));
+
+  // spot(id) — not renderable, return a neutral color
+  if (/^spot\(/.test(value)) return 'rgba(100,100,255,0.5)';
+
+  return value; // pass through anything else (e.g. a named CSS color)
+}
+
+function cmykToRgb(c, m, y, k) {
+  const r = Math.round(255 * (1 - c) * (1 - k));
+  const g = Math.round(255 * (1 - m) * (1 - k));
+  const b = Math.round(255 * (1 - y) * (1 - k));
+  return `rgb(${r},${g},${b})`;
+}
+
+function labToRgb(L, a, b) {
+  // CIE L*a*b* → XYZ (D50) → linear sRGB → gamma sRGB
+  const fy = (L + 16) / 116;
+  const fx = a / 500 + fy;
+  const fz = fy - b / 200;
+  const delta = 6/29;
+  const cube = (t) => t > delta ? t**3 : 3*delta*delta*(t - 4/29);
+  const X = 0.96422 * cube(fx);
+  const Y = 1.00000 * cube(fy);
+  const Z = 0.82521 * cube(fz);
+  // XYZ to linear sRGB
+  let lr =  3.2404542*X - 1.5371385*Y - 0.4985314*Z;
+  let lg = -0.9692660*X + 1.8760108*Y + 0.0415560*Z;
+  let lb =  0.0556434*X - 0.2040259*Y + 1.0572252*Z;
+  const gc = (v) => v <= 0.0031308 ? 12.92*v : 1.055*v**(1/2.4) - 0.055;
+  const r = Math.round(Math.max(0,Math.min(1,gc(lr))) * 255);
+  const g = Math.round(Math.max(0,Math.min(1,gc(lg))) * 255);
+  const bl= Math.round(Math.max(0,Math.min(1,gc(lb))) * 255);
+  return `rgb(${r},${g},${bl})`;
+}
+
+// =====================================================================
+// Unit Converter (canvas units to SVG user units — i.e. normalize to
+// the canvas coordinate space which uses its own unit system)
+// =====================================================================
+function parseUnit(val) {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  val = String(val).trim();
+  const m = val.match(/^([-\d.]+)\s*(mm|cm|in|pt|px|em|%)?$/);
+  if (!m) return parseFloat(val) || 0;
+  return parseFloat(m[1]); // Units are already in canvas coordinate space for MDF
+}
+
+// =====================================================================
+// Attribute helpers — handle namespace-prefixed attributes robustly
+// =====================================================================
+function getAttr(el, localName, ns) {
+  if (ns) {
+    const v = el.getAttributeNS(ns, localName);
+    if (v !== null) return v;
+  }
+  // Also try without namespace (some parsers flatten namespaces)
+  const v = el.getAttribute(localName);
+  if (v !== null) return v;
+  // Try with common prefixes scanned from attribute list
+  for (const attr of el.attributes) {
+    if (attr.localName === localName) return attr.value;
+  }
+  return null;
+}
+
+// =====================================================================
+// SVG Attribute Mapper — translate MDF attributes to SVG
+// =====================================================================
+function applyGraphicAttrs(svgEl, mdfEl, fontMap) {
+  const fill  = mdfEl.getAttribute('fill');
+  const stroke= mdfEl.getAttribute('stroke');
+  const sw    = mdfEl.getAttribute('stroke-width');
+  const sda   = mdfEl.getAttribute('stroke-dasharray');
+  const sdo   = mdfEl.getAttribute('stroke-dashoffset');
+  const slc   = mdfEl.getAttribute('stroke-linecap');
+  const slj   = mdfEl.getAttribute('stroke-linejoin');
+  const sml   = mdfEl.getAttribute('stroke-miterlimit');
+  const opacity= mdfEl.getAttribute('opacity');
+  const blendMode = mdfEl.getAttribute('blend-mode');
+
+  if (fill !== null)   svgEl.setAttribute('fill',   parseMDFColor(fill));
+  else                 svgEl.setAttribute('fill',   'none');
+  if (stroke !== null) svgEl.setAttribute('stroke', parseMDFColor(stroke));
+  if (sw)     svgEl.setAttribute('stroke-width', parseUnit(sw));
+  if (sda && sda !== 'none') svgEl.setAttribute('stroke-dasharray', sda.split(/\s+/).map(parseUnit).join(' '));
+  if (sdo)    svgEl.setAttribute('stroke-dashoffset', parseUnit(sdo));
+  if (slc)    svgEl.setAttribute('stroke-linecap', slc);
+  if (slj)    svgEl.setAttribute('stroke-linejoin', slj);
+  if (sml)    svgEl.setAttribute('stroke-miterlimit', sml);
+  if (opacity) svgEl.setAttribute('opacity', opacity);
+  if (blendMode && blendMode !== 'normal') {
+    svgEl.setAttribute('style', `mix-blend-mode:${blendMode}`);
+  }
+}
+
+// =====================================================================
+// Font resolver
+// =====================================================================
+function resolveFont(fontRef, fontMap) {
+  if (!fontRef || !fontMap) return null;
+  return fontMap[fontRef] || null;
+}
+
+function getFontFamily(fontInfo) {
+  if (!fontInfo) return 'serif';
+  const family = fontInfo.family || 'serif';
+  const style  = fontInfo.style  || 'normal';
+  // Detect heading vs body by weight
+  const weight = parseInt(fontInfo.weight || 400, 10);
+  if (!fontInfo.family) return weight >= 600 ? 'serif' : 'sans-serif';
+  return `"${family}", ${weight >= 600 ? 'serif' : 'sans-serif'}`;
+}
+
+// =====================================================================
+// Parse <reflow-region> to extract bounding box
+// Returns {x, y, width, height, cx} or null
+// =====================================================================
+function parseReflowRegion(rrEl, canvasWidth, canvasHeight) {
+  if (!rrEl) return { x: 0, y: 0, width: canvasWidth, height: canvasHeight, cx: canvasWidth/2 };
+
+  const shapeRef = rrEl.getAttribute('shape-ref');
+  const shapePath = rrEl.getAttribute('shape');
+  const paddingStr = rrEl.getAttribute('padding') || '0';
+  const paddingTopStr = rrEl.getAttribute('padding-top');
+  const padding = parseUnit(paddingStr);
+  const paddingTop = paddingTopStr ? parseUnit(paddingTopStr) : padding;
+
+  if (shapeRef === 'canvas-boundary') {
+    const inset = padding;
+    return {
+      x:      inset,
+      y:      paddingTop,
+      width:  canvasWidth  - inset * 2,
+      height: canvasHeight - paddingTop - inset,
+      cx:     canvasWidth / 2
+    };
+  }
+
+  if (shapePath) {
+    // Parse bounding box from SVG path (simplified: extract all numeric coords)
+    const coords = [];
+    const re = /[MmLlHhVvCcSsQqTtAaZz]|[-\d.]+/g;
+    let tok;
+    let xs = [], ys = [];
+    let cx=0, cy=0, lx=0, ly=0;
+    const cmd_re = /[MmLlHhVvCcSsQqTtAaZz]/;
+    let tokens = [];
+    while((tok=re.exec(shapePath))!==null) tokens.push(tok[0]);
+
+    let i=0, cmd='M';
+    while(i<tokens.length){
+      if(cmd_re.test(tokens[i])){ cmd=tokens[i++]; continue; }
+      const num=()=>parseFloat(tokens[i++]);
+      switch(cmd){
+        case 'M': case 'L': lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 'm': case 'l': lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'H': lx=num(); xs.push(lx); break;
+        case 'h': lx+=num(); xs.push(lx); break;
+        case 'V': ly=num(); ys.push(ly); break;
+        case 'v': ly+=num(); ys.push(ly); break;
+        case 'C': num();num();num();num(); lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 'c': num();num();num();num(); lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'Q': num();num(); lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 'q': num();num(); lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'A': num();num();num();num();num(); lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 'a': num();num();num();num();num(); lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'S': num();num(); lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 's': num();num(); lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'T': lx=num();ly=num(); xs.push(lx);ys.push(ly); break;
+        case 't': lx+=num();ly+=num(); xs.push(lx);ys.push(ly); break;
+        case 'Z': case 'z': break;
+        default: if(!isNaN(parseFloat(tokens[i-1]))){}else{i++;}
+      }
+    }
+
+    if (xs.length && ys.length) {
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      return {
+        x: minX + padding,
+        y: minY + paddingTop,
+        width:  (maxX - minX) - padding*2,
+        height: (maxY - minY) - paddingTop - padding,
+        cx: (minX + maxX) / 2
+      };
+    }
+  }
+
+  // Fallback: center of canvas
+  return { x: padding, y: paddingTop, width: canvasWidth - padding*2, height: canvasHeight - paddingTop - padding, cx: canvasWidth/2 };
+}
+
+// =====================================================================
+// Element Renderers
+// =====================================================================
+
+function renderCircle(el, fontMap) {
+  const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx', el.getAttribute('cx') || '0');
+  c.setAttribute('cy', el.getAttribute('cy') || '0');
+  c.setAttribute('r',  el.getAttribute('r')  || '0');
+  applyGraphicAttrs(c, el, fontMap);
+  return c;
+}
+
+function renderRect(el, fontMap) {
+  const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  ['x','y','width','height','rx','ry'].forEach(a => {
+    const v = el.getAttribute(a);
+    if (v !== null) r.setAttribute(a, v);
+  });
+  applyGraphicAttrs(r, el, fontMap);
+  return r;
+}
+
+function renderLine(el, fontMap) {
+  const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+  ['x1','y1','x2','y2'].forEach(a => {
+    const v = el.getAttribute(a);
+    if (v !== null) l.setAttribute(a, v);
+  });
+  applyGraphicAttrs(l, el, fontMap);
+  return l;
+}
+
+function renderPath(el, fontMap) {
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  const d = el.getAttribute('d') || el.getAttribute('path');
+  if (d) p.setAttribute('d', d);
+  applyGraphicAttrs(p, el, fontMap);
+  return p;
+}
+
+function renderShape(el, fontMap) {
+  // MDF <shape> element uses path= attribute
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  const d = el.getAttribute('path') || el.getAttribute('d');
+  if (d) p.setAttribute('d', d);
+  applyGraphicAttrs(p, el, fontMap);
+  return p;
+}
+
+function renderTextBlock(el, fontMap, canvasWidth, canvasHeight) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+
+  const fontRef = el.getAttribute('font-ref');
+  const fontSize = parseUnit(el.getAttribute('size') || el.getAttribute('font-size') || '10');
+  const leading  = parseUnit(el.getAttribute('leading') || String(fontSize * 1.35));
+  const colorRaw = el.getAttribute('color');
+  const textAlign = el.getAttribute('text-align') || 'start';
+  const color = colorRaw ? parseMDFColor(colorRaw) : 'currentColor';
+
+  const fontInfo = resolveFont(fontRef, fontMap);
+  const fontFamily = getFontFamily(fontInfo);
+  const fontWeight = fontInfo ? (fontInfo.weight || '400') : '400';
+  const fontStyle  = fontInfo ? (fontInfo.style  || 'normal') : 'normal';
+
+  // Get reflow region
+  const rrEl = el.getElementsByTagNameNS('*','reflow-region')[0]
+             || el.getElementsByTagName('reflow-region')[0];
+  const region = parseReflowRegion(rrEl, canvasWidth, canvasHeight);
+
+  // Collect <p> elements
+  const paras = Array.from(el.children).filter(c =>
+    c.localName === 'p' || c.tagName === 'p'
+  );
+
+  let y = region.y + fontSize;  // baseline start
+
+  for (const p of paras) {
+    // p can override font-ref, size, color
+    const pFontRef  = p.getAttribute('font-ref');
+    const pSizeRaw  = p.getAttribute('size') || p.getAttribute('font-size');
+    const pColorRaw = p.getAttribute('color');
+    const pFontInfo = pFontRef ? resolveFont(pFontRef, fontMap) : fontInfo;
+    const pFontSize = pSizeRaw ? parseUnit(pSizeRaw) : fontSize;
+    const pLeading  = pSizeRaw ? pFontSize * 1.35 : leading;
+    const pColor    = pColorRaw ? parseMDFColor(pColorRaw) : color;
+    const pFamily   = pFontRef ? getFontFamily(pFontInfo) : fontFamily;
+    const pWeight   = pFontInfo ? (pFontInfo.weight || fontWeight) : fontWeight;
+    const pStyle    = pFontInfo ? (pFontInfo.style  || fontStyle)  : fontStyle;
+
+    // Collect text content, handling <span> elements
+    const spans = Array.from(p.childNodes);
+    if (spans.length === 0) { y += pLeading; continue; }
+
+    // Build a single SVG <text> with <tspan> for each span
+    let textContent = '';
+    const spanGroups = [];
+
+    for (const node of spans) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const txt = node.textContent.trim();
+        if (txt) spanGroups.push({ text: txt, fontRef: null, fontSize: null, color: null });
+      } else if (node.localName === 'span' || node.tagName === 'span') {
+        const sFontRef  = node.getAttribute('font-ref');
+        const sSizeRaw  = node.getAttribute('size') || node.getAttribute('font-size');
+        const sColorRaw = node.getAttribute('color');
+        const txt = node.textContent.trim();
+        if (txt) spanGroups.push({
+          text: txt,
+          fontRef: sFontRef,
+          fontSize: sSizeRaw ? parseUnit(sSizeRaw) : null,
+          color: sColorRaw ? parseMDFColor(sColorRaw) : null
+        });
+      }
+    }
+
+    if (spanGroups.length === 0) { y += pLeading; continue; }
+
+    const svgText = document.createElementNS('http://www.w3.org/2000/svg','text');
+
+    // X position by text-align
+    let xPos, anchor;
+    if (textAlign === 'center') {
+      xPos = region.cx;
+      anchor = 'middle';
+    } else if (textAlign === 'end' || textAlign === 'right') {
+      xPos = region.x + region.width;
+      anchor = 'end';
+    } else if (textAlign === 'justify' || textAlign === 'start' || textAlign === 'left') {
+      xPos = region.x;
+      anchor = 'start';
+    } else {
+      xPos = region.x;
+      anchor = 'start';
+    }
+
+    svgText.setAttribute('x', xPos);
+    svgText.setAttribute('y', y);
+    svgText.setAttribute('text-anchor', anchor);
+    svgText.setAttribute('fill', pColor);
+    svgText.setAttribute('font-family', pFamily);
+    svgText.setAttribute('font-size', pFontSize);
+    svgText.setAttribute('font-weight', pWeight);
+    svgText.setAttribute('font-style', pStyle);
+    svgText.setAttribute('dominant-baseline', 'auto');
+
+    if (spanGroups.length === 1 && !spanGroups[0].fontRef) {
+      // Simple text, no spans needed
+      svgText.textContent = spanGroups[0].text;
+    } else {
+      for (const sg of spanGroups) {
+        const ts = document.createElementNS('http://www.w3.org/2000/svg','tspan');
+        ts.textContent = sg.text;
+        if (sg.color) ts.setAttribute('fill', sg.color);
+        if (sg.fontSize) ts.setAttribute('font-size', sg.fontSize);
+        if (sg.fontRef) {
+          const sfi = resolveFont(sg.fontRef, fontMap);
+          if (sfi) {
+            ts.setAttribute('font-family', getFontFamily(sfi));
+            ts.setAttribute('font-weight', sfi.weight || '400');
+            ts.setAttribute('font-style',  sfi.style  || 'normal');
+          }
+        }
+        svgText.appendChild(ts);
+        // Add space between spans
+        svgText.appendChild(document.createTextNode(' '));
+      }
+    }
+
+    g.appendChild(svgText);
+    y += pLeading;
+  }
+
+  return g;
+}
+
+function renderImage(el, fontMap) {
+  const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+  const src = el.getAttribute('src') || '';
+  // Skip mdfx: protocol assets (embedded font refs etc.)
+  if (src.startsWith('mdfx:') || src.startsWith('fonts/')) return null;
+  img.setAttribute('href', src);
+  img.setAttribute('x',      el.getAttribute('x')      || '0');
+  img.setAttribute('y',      el.getAttribute('y')      || '0');
+  img.setAttribute('width',  el.getAttribute('width')  || '100%');
+  img.setAttribute('height', el.getAttribute('height') || '100%');
+  const fit = el.getAttribute('object-fit') || 'fill';
+  if (fit === 'contain') img.setAttribute('preserveAspectRatio','xMidYMid meet');
+  else if (fit === 'cover') img.setAttribute('preserveAspectRatio','xMidYMid slice');
+  else if (fit === 'none') img.setAttribute('preserveAspectRatio','none');
+  const opacity = el.getAttribute('opacity');
+  if (opacity) img.setAttribute('opacity', opacity);
+  return img;
+}
+
+// =====================================================================
+// Layer renderer — recursively handles layer contents
+// =====================================================================
+function renderLayerContents(layerEl, svgG, fontMap, canvasWidth, canvasHeight) {
+  const blendMode = layerEl.getAttribute('blend-mode') || 'normal';
+  const opacity   = layerEl.getAttribute('opacity');
+  if (opacity) svgG.setAttribute('opacity', opacity);
+  if (blendMode !== 'normal' && blendMode !== 'pass-through') {
+    svgG.style.mixBlendMode = blendMode;
+  }
+
+  for (const child of layerEl.children) {
+    const ln = child.localName || child.tagName;
+    let rendered = null;
+
+    switch (ln) {
+      case 'circle':     rendered = renderCircle(child, fontMap);     break;
+      case 'rect':       rendered = renderRect(child, fontMap);       break;
+      case 'line':       rendered = renderLine(child, fontMap);       break;
+      case 'path':       rendered = renderPath(child, fontMap);       break;
+      case 'shape':      rendered = renderShape(child, fontMap);      break;
+      case 'image':      rendered = renderImage(child, fontMap);      break;
+      case 'text-block': rendered = renderTextBlock(child, fontMap, canvasWidth, canvasHeight); break;
+      case 'group': {
+        const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
+        const tr = child.getAttribute('transform');
+        if (tr) g2.setAttribute('transform', tr);
+        renderLayerContents(child, g2, fontMap, canvasWidth, canvasHeight);
+        rendered = g2;
+        break;
+      }
+      case 'layer': {
+        // nested layer
+        const printRole = getAttr(child, 'print:role', null) || child.getAttribute('print:role') || '';
+        const printVis  = child.getAttribute('print:visible-in-render');
+        // Skip print-only layers (registration marks, foil, emboss, etc.)
+        if (printRole && ['registration-marks','foil-plate','emboss-plate'].includes(printRole)) break;
+        if (printVis === 'false') break;
+        const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
+        const layerId = child.getAttribute('id');
+        if (layerId) g2.setAttribute('id', 'layer-' + layerId);
+        renderLayerContents(child, g2, fontMap, canvasWidth, canvasHeight);
+        rendered = g2;
+        break;
+      }
+      default: break; // skip unknown / print-only elements
+    }
+
+    if (rendered) svgG.appendChild(rendered);
+  }
+}
+
+// =====================================================================
+// Main MDF → SVG renderer
+// =====================================================================
+function renderMDF(doc) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  // --- Find root <mdf> ---
+  const mdfRoot = doc.documentElement;
+
+  // --- Find <canvas> (direct child of mdf, or under <document>) ---
+  let canvasEls = Array.from(mdfRoot.children).filter(c =>
+    c.localName === 'canvas' || c.tagName === 'canvas'
+  );
+  if (!canvasEls.length) {
+    const docEl = Array.from(mdfRoot.children).find(c =>
+      c.localName === 'document' || c.tagName === 'document'
+    );
+    if (docEl) canvasEls = Array.from(docEl.children).filter(c =>
+      c.localName === 'canvas' || c.tagName === 'canvas'
+    );
+  }
+  if (!canvasEls.length) throw new Error('No <canvas> element found in MDF document.');
+
+  // For now render first canvas
+  const canvas = canvasEls[0];
+
+  const width    = parseFloat(canvas.getAttribute('width')  || '100');
+  const height   = parseFloat(canvas.getAttribute('height') || '100');
+  const boundary = canvas.getAttribute('boundary');
+  const units    = canvas.getAttribute('units') || 'mm';
+
+  // --- Parse manifest for fonts & metadata ---
+  const manifest = Array.from(mdfRoot.children).find(c =>
+    c.localName === 'manifest' || c.tagName === 'manifest'
+  );
+  const fontMap = {};
+  const meta = {};
+
+  if (manifest) {
+    // Fonts
+    const assets = Array.from(manifest.children).find(c =>
+      c.localName === 'assets' || c.tagName === 'assets'
+    );
+    if (assets) {
+      for (const font of assets.children) {
+        if (font.localName === 'font' || font.tagName === 'font') {
+          const id = font.getAttribute('id');
+          if (id) fontMap[id] = {
+            family: font.getAttribute('family'),
+            weight: font.getAttribute('weight') || '400',
+            style:  font.getAttribute('style')  || 'normal',
+            src:    font.getAttribute('src'),
+          };
+        }
+      }
+    }
+
+    // Metadata
+    for (const child of manifest.children) {
+      const ln = child.localName;
+      if (ln === 'title')    meta.title    = child.textContent.trim();
+      if (ln === 'author')   meta.author   = child.textContent.trim();
+      if (ln === 'created')  meta.created  = child.textContent.trim();
+      if (ln === 'language') meta.language = child.textContent.trim();
+      if (ln === 'description') meta.description = child.textContent.trim();
+    }
+  }
+
+  // Canvas semantic attrs
+  const shapeType    = getAttr(canvas, 'shape-type',    NS.SEM) || canvas.getAttribute('sem:shape-type');
+  const shapeMeaning = getAttr(canvas, 'shape-meaning', NS.SEM) || canvas.getAttribute('sem:shape-meaning');
+  const dieCut       = getAttr(canvas, 'die-cut',       NS.PRINT) || canvas.getAttribute('print:die-cut');
+  const bleed        = getAttr(canvas, 'bleed',         NS.PRINT) || canvas.getAttribute('print:bleed');
+
+  // --- Build SVG ---
+  const svg = document.getElementById('svg-output');
+
+  // Determine display size (scale to fit viewport nicely)
+  const DISPLAY_PX = 600; // base display dimension
+  const scaleFactor = width >= height ? DISPLAY_PX / width : DISPLAY_PX / height;
+  const dispW = width  * scaleFactor;
+  const dispH = height * scaleFactor;
+
+  svg.setAttribute('width',   dispW);
+  svg.setAttribute('height',  dispH);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.innerHTML = '';  // clear previous
+
+  const defs = document.createElementNS(svgNS, 'defs');
+  svg.appendChild(defs);
+
+  // --- Clip path from boundary ---
+  if (boundary) {
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', 'mdf-boundary-clip');
+    const clipShape = document.createElementNS(svgNS, 'path');
+    clipShape.setAttribute('d', boundary);
+    clipPath.appendChild(clipShape);
+    defs.appendChild(clipPath);
+  }
+
+  // --- Background: canvas bg (transparent/white) ---
+  const bgRect = document.createElementNS(svgNS, 'rect');
+  bgRect.setAttribute('width', width);
+  bgRect.setAttribute('height', height);
+  bgRect.setAttribute('fill', 'transparent');
+  svg.appendChild(bgRect);
+
+  // --- Content group (clipped to boundary) ---
+  const contentG = document.createElementNS(svgNS, 'g');
+  if (boundary) contentG.setAttribute('clip-path', 'url(#mdf-boundary-clip)');
+  svg.appendChild(contentG);
+
+  // --- Render layers ---
+  const layersEl = canvas.getElementsByTagName('layers')[0]
+                || canvas.getElementsByTagNameNS('*','layers')[0];
+
+  if (layersEl) {
+    for (const layer of layersEl.children) {
+      const ln = layer.localName || layer.tagName;
+      if (ln !== 'layer') continue;
+
+      // Check visibility
+      if (layer.getAttribute('visible') === 'false') continue;
+
+      // Check print-only layers
+      const printRole = layer.getAttribute('print:role') || '';
+      const printVis  = layer.getAttribute('print:visible-in-render');
+      if (['registration-marks','foil-plate','emboss-plate'].includes(printRole)) continue;
+      if (printVis === 'false') continue;
+
+      const layerG = document.createElementNS(svgNS, 'g');
+      const layerId = layer.getAttribute('id');
+      if (layerId) layerG.setAttribute('id', 'layer-' + layerId);
+
+      renderLayerContents(layer, layerG, fontMap, width, height);
+      contentG.appendChild(layerG);
+    }
+  }
+
+  // --- Boundary outline (decorative) ---
+  if (boundary) {
+    const outline = document.createElementNS(svgNS, 'path');
+    outline.setAttribute('d', boundary);
+    outline.setAttribute('fill', 'none');
+    outline.setAttribute('stroke', 'rgba(255,255,255,0.12)');
+    outline.setAttribute('stroke-width', '0.5');
+    outline.setAttribute('class', 'mdf-boundary-outline');
+    svg.appendChild(outline);
+  }
+
+  // --- Viewer zoom state ---
+  viewerState.scale = 1.0;
+  viewerState.dispW = dispW;
+  viewerState.dispH = dispH;
+  applyZoom();
+
+  // Return metadata for sidebar
+  return {
+    width, height, units, boundary, shapeType, shapeMeaning,
+    dieCut, bleed, fontMap, meta,
+    canvasCount: canvasEls.length,
+    layers: layersEl ? Array.from(layersEl.children).filter(c =>
+      c.localName === 'layer' || c.tagName === 'layer'
+    ) : []
+  };
+}
+
+// =====================================================================
+// Sidebar population
+// =====================================================================
+const SHAPE_ICONS = {
+  circle: '●', ellipse: '⬭', rectangle: '▬', polygon: '⬡',
+  'rounded-rectangle': '▬', organic: '⌘', compound: '◈'
+};
+
+function populateSidebar(info) {
+  const sidebar = document.getElementById('sidebar-info');
+  const empty   = document.getElementById('sidebar-empty');
+  sidebar.innerHTML = '';
+
+  // --- Document section ---
+  const docSection = makeSection('Document');
+  if (info.meta.title)  addRow(docSection, 'Title',    info.meta.title);
+  if (info.meta.author) addRow(docSection, 'Author',   info.meta.author);
+  if (info.meta.created) {
+    const d = new Date(info.meta.created);
+    addRow(docSection, 'Created', isNaN(d) ? info.meta.created : d.toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'}));
+  }
+  if (info.meta.language) addRow(docSection, 'Language', info.meta.language);
+  if (info.canvasCount > 1) addRow(docSection, 'Pages', String(info.canvasCount));
+  sidebar.appendChild(docSection);
+
+  // --- Canvas section ---
+  const canvasSection = makeSection('Canvas');
+  addRow(canvasSection, 'Size', `${info.width} × ${info.height} ${info.units}`);
+
+  if (info.shapeType || info.shapeMeaning) {
+    const icon = SHAPE_ICONS[info.shapeType] || '◼';
+    const badge = document.createElement('span');
+    badge.className = 'shape-badge';
+    badge.innerHTML = `<span>${icon}</span><span>${info.shapeMeaning || info.shapeType || 'unknown'}</span>`;
+    const row = makeRow('Shape');
+    row.appendChild(badge);
+    canvasSection.appendChild(row);
+    if (info.shapeType && info.shapeMeaning)
+      addRow(canvasSection, 'Type', info.shapeType);
+  }
+
+  if (info.dieCut === 'true') {
+    addRow(canvasSection, 'Die-cut', 'Yes' + (info.bleed ? ` (${info.bleed} bleed)` : ''));
+  }
+  sidebar.appendChild(canvasSection);
+
+  // --- Layers section ---
+  if (info.layers.length) {
+    const layersSection = makeSection('Layers');
+    const COLORS = ['#6c7dff','#8b6fff','#3dd68c','#f0a050','#ff5e6d','#54b8ff','#ff8ac4','#b8ff5e'];
+    info.layers.forEach((layer, i) => {
+      const id   = layer.getAttribute('id') || `layer-${i+1}`;
+      const bm   = layer.getAttribute('blend-mode') || 'normal';
+      const role = layer.getAttribute('print:role') || 'body';
+      const vis  = layer.getAttribute('visible');
+      const pVis = layer.getAttribute('print:visible-in-render');
+
+      const item = document.createElement('div');
+      item.className = 'layer-item';
+
+      const dot = document.createElement('div');
+      dot.className = 'layer-dot';
+      dot.style.background = COLORS[i % COLORS.length];
+      if (vis === 'false' || pVis === 'false') dot.style.opacity = '0.3';
+
+      const name = document.createElement('div');
+      name.className = 'layer-name';
+      name.textContent = id;
+      if (vis === 'false') name.style.opacity = '0.4';
+
+      item.appendChild(dot);
+      item.appendChild(name);
+
+      if (bm !== 'normal') {
+        const badge = document.createElement('span');
+        badge.className = 'layer-badge';
+        badge.textContent = bm;
+        item.appendChild(badge);
+      }
+      if (role !== 'body') {
+        const badge = document.createElement('span');
+        badge.className = 'layer-badge';
+        badge.textContent = role.replace('-',' ');
+        item.appendChild(badge);
+      }
+
+      layersSection.appendChild(item);
+    });
+    sidebar.appendChild(layersSection);
+  }
+
+  // --- Fonts section ---
+  const fontKeys = Object.keys(info.fontMap);
+  if (fontKeys.length) {
+    const fontSection = makeSection('Fonts');
+    for (const id of fontKeys) {
+      const fi = info.fontMap[id];
+      addRow(fontSection, id, `${fi.family || '?'} ${fi.weight || '400'}${fi.style === 'italic' ? ' Italic' : ''}`);
+    }
+    sidebar.appendChild(fontSection);
+  }
+
+  empty.style.display = 'none';
+  sidebar.classList.add('active');
+}
+
+function makeSection(title) {
+  const sec = document.createElement('div');
+  sec.className = 'info-section';
+  const h = document.createElement('div');
+  h.className = 'info-section-title';
+  h.textContent = title;
+  sec.appendChild(h);
+  return sec;
+}
+
+function makeRow(key) {
+  const row = document.createElement('div');
+  row.className = 'info-row';
+  const keyEl = document.createElement('div');
+  keyEl.className = 'info-key';
+  keyEl.textContent = key;
+  row.appendChild(keyEl);
+  return row;
+}
+
+function addRow(section, key, value, mono) {
+  const row = makeRow(key);
+  const val = document.createElement('div');
+  val.className = 'info-val' + (mono ? ' mono' : '');
+  val.textContent = value;
+  row.appendChild(val);
+  section.appendChild(row);
+}
+
+// =====================================================================
+// Zoom state
+// =====================================================================
+const viewerState = { scale: 1.0, dispW: 600, dispH: 600 };
+
+function applyZoom() {
+  const svg = document.getElementById('svg-output');
+  svg.style.width  = (viewerState.dispW  * viewerState.scale) + 'px';
+  svg.style.height = (viewerState.dispH * viewerState.scale) + 'px';
+  document.getElementById('zoom-label').textContent = Math.round(viewerState.scale * 100) + '%';
+}
+
+function fitToWindow() {
+  const area   = document.getElementById('canvas-area');
+  const padded = { w: area.clientWidth - 80, h: area.clientHeight - 80 };
+  const scaleW = padded.w / viewerState.dispW;
+  const scaleH = padded.h / viewerState.dispH;
+  viewerState.scale = Math.min(scaleW, scaleH, 2.0);
+  applyZoom();
+}
+
+document.getElementById('zoom-in').addEventListener('click', () => {
+  viewerState.scale = Math.min(viewerState.scale * 1.25, 5);
+  applyZoom();
+});
+document.getElementById('zoom-out').addEventListener('click', () => {
+  viewerState.scale = Math.max(viewerState.scale / 1.25, 0.1);
+  applyZoom();
+});
+document.getElementById('zoom-fit').addEventListener('click', fitToWindow);
+
+// Mouse wheel zoom
+document.getElementById('canvas-area').addEventListener('wheel', (e) => {
+  if (!document.getElementById('viewer').classList.contains('active')) return;
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.1 : 0.9;
+  viewerState.scale = Math.max(0.1, Math.min(5, viewerState.scale * delta));
+  applyZoom();
+}, { passive: false });
+
+// =====================================================================
+// File loading
+// =====================================================================
+function showError(msg) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = msg;
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 5000);
+}
+
+function loadMDFText(text, filename) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'application/xml');
+
+    // Check for parse errors
+    const parseErr = doc.querySelector('parsererror');
+    if (parseErr) {
+      // Also try as text/xml
+      const doc2 = parser.parseFromString(text, 'text/xml');
+      const parseErr2 = doc2.querySelector('parsererror');
+      if (parseErr2) throw new Error('XML parse error: ' + parseErr.textContent.split('\n')[0]);
+    }
+
+    const info = renderMDF(doc);
+
+    // Switch view
+    document.getElementById('welcome').style.display = 'none';
+    const viewer = document.getElementById('viewer');
+    viewer.classList.add('active');
+    viewer.querySelector('#svg-output').classList.add('fade-in');
+
+    fitToWindow();
+    populateSidebar(info);
+
+    // Update title
+    document.title = (info.meta.title || filename || 'Untitled') + ' — MDF Viewer';
+
+  } catch (err) {
+    showError('Failed to render MDF: ' + err.message);
+    console.error(err);
+  }
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => loadMDFText(e.target.result, file.name);
+  reader.onerror = () => showError('Could not read file: ' + file.name);
+  reader.readAsText(file);
+}
+
+// File input
+document.getElementById('file-input').addEventListener('change', (e) => {
+  handleFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+// Drop zone
+const dropZone = document.getElementById('drop-zone');
+const canvasArea = document.getElementById('canvas-area');
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  dropZone.classList.add('drag-over');
+}
+function onDragLeave() {
+  dropZone.classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+dropZone.addEventListener('dragover', onDragOver);
+dropZone.addEventListener('dragleave', onDragLeave);
+dropZone.addEventListener('drop', onDrop);
+canvasArea.addEventListener('dragover', onDragOver);
+canvasArea.addEventListener('dragleave', onDragLeave);
+canvasArea.addEventListener('drop', onDrop);
+
+dropZone.addEventListener('click', () => document.getElementById('file-input').click());
+dropZone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') document.getElementById('file-input').click();
+});
+
+// =====================================================================
+// Keyboard shortcuts
+// =====================================================================
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+    e.preventDefault();
+    document.getElementById('file-input').click();
+  }
+  if (e.key === '+' || e.key === '=') { viewerState.scale = Math.min(viewerState.scale * 1.25, 5); applyZoom(); }
+  if (e.key === '-') { viewerState.scale = Math.max(viewerState.scale / 1.25, 0.1); applyZoom(); }
+  if (e.key === '0') fitToWindow();
+});
+
+// =====================================================================
+// Load demo/embedded document if URL has ?demo
+// =====================================================================
+(function() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('demo')) {
+    // Embedded demo: a circular badge with rich content
+    const demo = `<?xml version="1.0" encoding="UTF-8"?>
+<mdf version="0.1" xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:print="https://morphousdoc.org/ns/print/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+  <manifest>
+    <meta:title>MDF Viewer — Demo Badge</meta:title>
+    <meta:author>Morphous Document Format</meta:author>
+    <meta:created>2026-05-01T00:00:00Z</meta:created>
+    <assets>
+      <font id="heading-font" family="Georgia" weight="700"/>
+      <font id="body-font" family="Arial" weight="400"/>
+    </assets>
+  </manifest>
+  <canvas width="120" height="120" units="mm"
+          boundary="M 60,0 A 60,60 0 1,1 60,0.001 Z"
+          sem:shape-type="circle" sem:shape-meaning="badge">
+    <layers>
+      <layer id="bg" blend-mode="normal">
+        <circle cx="60" cy="60" r="63" fill="color(cmyk 0.9 0.75 0.1 0.05)"/>
+      </layer>
+      <layer id="rings">
+        <circle cx="60" cy="60" r="57" fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.8"/>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="color(cmyk 0 0 0 0)" stroke-width="0.3" stroke-dasharray="3 5"/>
+      </layer>
+      <layer id="content">
+        <text-block id="name" font-ref="heading-font" size="11" leading="14" text-align="center" color="color(cmyk 0 0 0 0)">
+          <reflow-region shape="M 20,50 L 100,50 L 100,66 L 20,66 Z" padding="0"/>
+          <p>MORPHOUS</p>
+        </text-block>
+        <text-block id="sub" font-ref="body-font" size="7" leading="10" text-align="center" color="color(cmyk 0 0.05 0 0.1)">
+          <reflow-region shape="M 20,66 L 100,66 L 100,78 L 20,78 Z" padding="0"/>
+          <p>Document Format</p>
+        </text-block>
+        <line x1="32" y1="82" x2="88" y2="82" stroke="color(cmyk 0 0 0 0)" stroke-width="0.4"/>
+        <text-block id="tagline" font-ref="body-font" size="5.5" leading="8" text-align="center" color="color(cmyk 0 0.1 0 0.15)">
+          <reflow-region shape="M 18,84 L 102,84 L 102,100 L 18,100 Z" padding="0"/>
+          <p>Shape-native documents</p>
+          <p>v0.1 · morphousdoc.org</p>
+        </text-block>
+      </layer>
+    </layers>
+  </canvas>
+</mdf>`;
+    loadMDFText(demo, 'demo.mdf');
+  }
+})();
+
+</script>
+</body>
+</html>

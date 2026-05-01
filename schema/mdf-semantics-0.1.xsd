@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Semantics Namespace Schema — v0.1
+  Namespace: https://morphousdoc.org/ns/semantics/0.1
+
+  Defines:
+    • Attributes on <canvas>: sem:shape-type, sem:shape-meaning,
+      sem:shape-meaning-iri, sem:shape-context
+    • Attributes on content elements (layer, shape, text-block, image, group):
+      sem:role, sem:heading-level, sem:reading-order, sem:alt-text,
+      sem:description, sem:decorative, sem:lang
+    • sem:reading-order element (inside <manifest>, with sem:item children)
+
+  Specification reference: MDF v0.1, Chapter 7 and §3.6.
+-->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+  targetNamespace="https://morphousdoc.org/ns/semantics/0.1"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <!-- ============================================================
+       Simple types
+       ============================================================ -->
+
+  <!--
+    Shape type vocabulary (§3.6.1, §7.2.1).
+    Extended from spec §3.6.1 to also cover values listed in the task spec.
+  -->
+  <xs:simpleType name="ShapeTypeValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="rectangle"/>
+      <xs:enumeration value="rounded-rectangle"/>
+      <xs:enumeration value="circle"/>
+      <xs:enumeration value="ellipse"/>
+      <xs:enumeration value="polygon"/>
+      <xs:enumeration value="star"/>
+      <xs:enumeration value="heart"/>
+      <xs:enumeration value="arrow"/>
+      <xs:enumeration value="organic"/>
+      <xs:enumeration value="compound"/>
+      <xs:enumeration value="custom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!--
+    Shape meaning vocabulary (§3.6.2, §7.2.2).
+    Built-in values from the specification; custom values use "custom"
+    plus sem:shape-meaning-iri.
+  -->
+  <xs:simpleType name="ShapeMeaningValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="page-a4"/>
+      <xs:enumeration value="page-letter"/>
+      <xs:enumeration value="business-card"/>
+      <xs:enumeration value="badge"/>
+      <xs:enumeration value="sticker"/>
+      <xs:enumeration value="label"/>
+      <xs:enumeration value="label-bottle"/>
+      <xs:enumeration value="label-can"/>
+      <xs:enumeration value="tag"/>
+      <xs:enumeration value="envelope"/>
+      <xs:enumeration value="poster"/>
+      <xs:enumeration value="banner"/>
+      <xs:enumeration value="card"/>
+      <xs:enumeration value="certificate"/>
+      <xs:enumeration value="voucher"/>
+      <xs:enumeration value="ticket"/>
+      <xs:enumeration value="bookmark"/>
+      <xs:enumeration value="coaster"/>
+      <xs:enumeration value="brochure"/>
+      <xs:enumeration value="packaging"/>
+      <xs:enumeration value="custom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!--
+    Semantic role vocabulary for content elements (§7.3.1).
+  -->
+  <xs:simpleType name="ContentRoleValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="heading"/>
+      <xs:enumeration value="body"/>
+      <xs:enumeration value="caption"/>
+      <xs:enumeration value="byline"/>
+      <xs:enumeration value="dateline"/>
+      <xs:enumeration value="pullquote"/>
+      <xs:enumeration value="sidebar"/>
+      <xs:enumeration value="footnote"/>
+      <xs:enumeration value="endnote"/>
+      <xs:enumeration value="label"/>
+      <xs:enumeration value="decoration"/>
+      <xs:enumeration value="background"/>
+      <xs:enumeration value="figure"/>
+      <xs:enumeration value="logo"/>
+      <xs:enumeration value="signature"/>
+      <xs:enumeration value="stamp"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!--
+    Heading level values (§7.3.2).
+  -->
+  <xs:simpleType name="HeadingLevelValue">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+      <xs:enumeration value="4"/>
+      <xs:enumeration value="5"/>
+      <xs:enumeration value="6"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ============================================================
+       Attribute groups — used by the main schema via xs:anyAttribute
+       lax processing on cross-namespace attribute references.
+       ============================================================ -->
+
+  <!-- Attributes on <canvas> -->
+  <xs:attributeGroup name="CanvasSemanticAttributes">
+    <xs:annotation>
+      <xs:documentation>
+        Semantic attributes in the sem: namespace that appear on the &lt;canvas&gt; element.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="shape-type"        type="sem:ShapeTypeValue"    use="optional"/>
+    <xs:attribute name="shape-meaning"     type="sem:ShapeMeaningValue" use="optional"/>
+    <xs:attribute name="shape-meaning-iri" type="xs:anyURI"             use="optional"/>
+    <xs:attribute name="shape-context"     type="xs:string"             use="optional"/>
+  </xs:attributeGroup>
+
+  <!-- Attributes on content elements (layer, shape, image, group, text-block) -->
+  <xs:attributeGroup name="ContentSemanticAttributes">
+    <xs:annotation>
+      <xs:documentation>
+        Semantic attributes in the sem: namespace that appear on layer and
+        content elements (text-block, shape, image, group).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="role"          type="sem:ContentRoleValue"  use="optional"/>
+    <xs:attribute name="heading-level" type="sem:HeadingLevelValue" use="optional"/>
+    <xs:attribute name="reading-order" type="xs:positiveInteger"    use="optional"/>
+    <xs:attribute name="alt-text"      type="xs:string"             use="optional"/>
+    <xs:attribute name="description"   type="xs:string"             use="optional"/>
+    <xs:attribute name="decorative"    type="xs:boolean"            use="optional"/>
+    <xs:attribute name="lang"          type="xs:string"             use="optional"/>
+  </xs:attributeGroup>
+
+  <!-- ============================================================
+       sem:reading-order element (used inside <manifest>)
+       ============================================================ -->
+
+  <xs:element name="reading-order" type="sem:ReadingOrderType">
+    <xs:annotation>
+      <xs:documentation>
+        Optional authoritative reading sequence declared inside &lt;manifest&gt;.
+        When present, overrides per-element sem:reading-order attributes.
+        Each &lt;sem:item&gt; references a content element id.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="ReadingOrderType">
+    <xs:sequence>
+      <xs:element name="item" type="sem:ReadingOrderItemType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="ReadingOrderItemType">
+    <xs:attribute name="ref" type="xs:NMTOKEN" use="required">
+      <xs:annotation>
+        <xs:documentation>ID of a content element within the canvas that participates in the reading sequence.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+
+</xs:schema>
