@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Circular Resume
+  A circular document demonstrating shape-native layout.
+  The document boundary IS the design. Text reflows inside the circle.
+  Die-cut spec included for physical printing.
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:print="https://morphousdoc.org/ns/print/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Jane Smith — Circular Resume</meta:title>
+    <meta:author>Jane Smith</meta:author>
+    <meta:created>2026-05-01T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+
+    <conformance level="print"/>
+
+    <print:intent>
+      <print:substrate>coated</print:substrate>
+      <print:color-mode>cmyk</print:color-mode>
+      <print:resolution target="300dpi"/>
+    </print:intent>
+
+    <assets>
+      <font id="heading-font"
+            family="Playfair Display"
+            weight="700"
+            src="fonts/PlayfairDisplay-Bold.woff2"
+            embed="true"/>
+      <font id="body-font"
+            family="Inter"
+            weight="400"
+            src="fonts/Inter-Regular.woff2"
+            embed="true"/>
+      <font id="label-font"
+            family="Inter"
+            weight="300"
+            style="italic"
+            src="fonts/Inter-LightItalic.woff2"
+            embed="true"/>
+    </assets>
+  </manifest>
+
+  <!--
+    The canvas IS a circle. Width=Height=200mm. The boundary path is a
+    perfect circle via SVG arc. print:die-cut="true" means this boundary
+    also defines the cut line for a print shop.
+
+    sem:shape-meaning="badge" tells any document-aware system:
+    this circular document is a badge/credential object.
+  -->
+  <canvas width="200" height="200" units="mm"
+          boundary="M 100,0 A 100,100 0 1,1 100,0.001 Z"
+          print:die-cut="true"
+          print:die-cut-type="cut"
+          print:bleed="3mm"
+          sem:shape-type="circle"
+          sem:shape-meaning="badge">
+
+    <print:marks>
+      <print:registration-marks style="crosshair" offset="10mm"/>
+      <print:crop-marks length="5mm" weight="0.25pt" offset="3mm"/>
+    </print:marks>
+
+    <layers>
+
+      <!-- Background: deep navy fill extending to bleed -->
+      <layer id="background" blend-mode="normal">
+        <circle cx="100" cy="100" r="103" fill="color(cmyk 0.95 0.8 0.2 0.1)"/>
+      </layer>
+
+      <!-- Decorative ring border -->
+      <layer id="border-ring" blend-mode="normal">
+        <circle cx="100" cy="100" r="96" fill="none"
+                stroke="color(cmyk 0.1 0.1 0 0)" stroke-width="0.5mm"/>
+        <circle cx="100" cy="100" r="90" fill="none"
+                stroke="color(cmyk 0.1 0.1 0 0)" stroke-width="0.25mm" stroke-dasharray="2 4"/>
+      </layer>
+
+      <!-- Central photo placeholder circle -->
+      <layer id="photo-area" blend-mode="normal">
+        <circle cx="100" cy="58" r="28"
+                fill="color(cmyk 0.8 0.6 0.1 0.2)"
+                stroke="color(cmyk 0 0 0 0)" stroke-width="1mm"/>
+        <!-- In a real document: <image src="photo.jpg" clip-path="circle at 100,58 r 28"/> -->
+      </layer>
+
+      <!-- Name: large centered text in upper portion -->
+      <layer id="name-layer" blend-mode="normal">
+        <text-block id="name" font-ref="heading-font" size="14pt" leading="18pt"
+                    text-align="center" color="color(cmyk 0 0 0 0)">
+          <reflow-region shape="M 55,88 L 145,88 L 145,106 L 55,106 Z" padding="0"/>
+          <p>JANE SMITH</p>
+        </text-block>
+      </layer>
+
+      <!-- Title subtitle -->
+      <layer id="title-layer" blend-mode="normal">
+        <text-block id="title" font-ref="label-font" size="8pt" leading="11pt"
+                    text-align="center" color="color(cmyk 0.1 0.1 0 0.1)">
+          <reflow-region shape="M 50,106 L 150,106 L 150,118 L 50,118 Z" padding="0"/>
+          <p>Senior Software Engineer</p>
+        </text-block>
+      </layer>
+
+      <!-- Divider line -->
+      <layer id="divider" blend-mode="normal">
+        <line x1="65" y1="120" x2="135" y2="120"
+              stroke="color(cmyk 0.1 0.1 0 0.2)" stroke-width="0.25mm"/>
+      </layer>
+
+      <!-- Main body text: reflows inside the lower circular area -->
+      <layer id="body-content" blend-mode="normal">
+        <text-block id="experience" font-ref="body-font" size="7pt" leading="10pt"
+                    language="en-US" text-align="justify"
+                    color="color(cmyk 0 0 0 0)">
+          <!--
+            The reflow region is an arc-bounded shape covering the lower
+            two-thirds of the circle interior. Text reflows to fit the
+            circular boundary naturally.
+          -->
+          <reflow-region shape-ref="canvas-boundary" padding="14mm" padding-top="124mm"/>
+
+          <p font-ref="label-font" size="7.5pt" color="color(cmyk 0.1 0.1 0 0.2)">
+            EXPERIENCE
+          </p>
+          <p>
+            <span font-ref="heading-font" size="7pt">Acme Corp</span>
+            <span font-ref="label-font" size="6.5pt"> · 2022–Present</span>
+          </p>
+          <p>Led migration of monolithic service to distributed architecture serving 50M daily active users. Reduced p99 latency by 40%.</p>
+
+          <p font-ref="label-font" size="7.5pt" color="color(cmyk 0.1 0.1 0 0.2)">
+            SKILLS
+          </p>
+          <p>Python · Rust · Go · Distributed Systems · PostgreSQL · Kubernetes · Platform Engineering</p>
+
+          <p font-ref="label-font" size="7.5pt" color="color(cmyk 0.1 0.1 0 0.2)">
+            CONTACT
+          </p>
+          <p>jane@janesmith.dev · github.com/janesmith · San Francisco, CA</p>
+        </text-block>
+      </layer>
+
+    </layers>
+
+  </canvas>
+</mdf>

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.so
+
+# Rust
+target/
+Cargo.lock
+
+# Node / TypeScript
+node_modules/
+dist/
+*.js.map
+.next/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.png
+*.pdf
+*.mdfx
+!examples/**/*.mdfx
+
+# Fonts (not committed -- too large, use system fonts or download)
+*.woff2
+*.woff
+*.otf
+*.ttf
+
+# ICC profiles (not committed)
+*.icc
+*.icm

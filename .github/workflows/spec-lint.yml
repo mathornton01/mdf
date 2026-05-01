@@ -1,0 +1,59 @@
+name: Spec Lint
+
+on:
+  push:
+    paths:
+      - 'spec/**'
+      - 'examples/**/*.mdf'
+      - 'schema/**'
+  pull_request:
+    paths:
+      - 'spec/**'
+      - 'examples/**/*.mdf'
+      - 'schema/**'
+
+jobs:
+  lint-spec:
+    name: Lint spec documents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check spec structure
+        run: |
+          echo "Checking spec chapter files exist..."
+          for chapter in 00-overview 01-file-structure 03-canvas 05-typography 09-print; do
+            if [ ! -f "spec/v0.1/${chapter}.md" ]; then
+              echo "Missing: spec/v0.1/${chapter}.md"
+              exit 1
+            fi
+          done
+          echo "Spec structure OK"
+
+      - name: Validate MDF example files are well-formed XML
+        run: |
+          echo "Validating MDF example files..."
+          find examples/ -name "*.mdf" | while read f; do
+            python3 -c "
+import xml.etree.ElementTree as ET
+try:
+    ET.parse('$f')
+    print('OK: $f')
+except ET.ParseError as e:
+    print(f'FAIL: $f: {e}')
+    exit(1)
+"
+          done
+
+  python-lint:
+    name: Python code lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Lint reference implementation
+        run: ruff check reference-impl/python/src/
