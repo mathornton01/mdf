@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Hello World
+  The minimal conformant MDF document — a rectangle with centered text.
+
+  This example demonstrates:
+  - Minimum required elements: <mdf>, <manifest>, <canvas>
+  - Level 1 (basic) conformance
+  - A single text block with canvas-boundary reflow
+  - Simple CMYK color values
+
+  Dimensions: 100mm × 60mm (roughly a business-card-sized rectangle)
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Hello World</meta:title>
+    <meta:author>MDF Project</meta:author>
+    <meta:created>2026-05-02T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+    <meta:conformance level="1"/>
+
+    <assets>
+      <font id="body-font"
+            family="sans-serif"
+            weight="400"
+            src="fonts/placeholder.woff2"
+            embed="false"/>
+    </assets>
+  </manifest>
+
+  <!--
+    A plain rectangle. The boundary is the bounding box itself.
+    This is the simplest possible canvas configuration.
+  -->
+  <canvas width="100" height="60" units="mm"
+          boundary="M 0,0 L 100,0 L 100,60 L 0,60 Z"
+          sem:shape-type="rectangle"
+          sem:shape-meaning="custom">
+
+    <layers>
+
+      <!-- White background -->
+      <layer id="background">
+        <rect x="0" y="0" width="100" height="60"
+              fill="color(cmyk 0 0 0 0)"
+              stroke="none"/>
+      </layer>
+
+      <!-- "Hello, World!" centered on the canvas -->
+      <layer id="text-layer">
+        <text-block id="greeting"
+                    font-ref="body-font"
+                    size="18pt"
+                    leading="24pt"
+                    text-align="center"
+                    color="color(cmyk 0 0 0 1)"
+                    sem:role="heading"
+                    sem:heading-level="1"
+                    sem:reading-order="1">
+          <reflow-region shape-ref="canvas-boundary" padding="10mm"/>
+          <p>Hello, World!</p>
+        </text-block>
+      </layer>
+
+      <!-- Thin border rule around the canvas edge -->
+      <layer id="border">
+        <rect x="2" y="2" width="96" height="56"
+              fill="none"
+              stroke="color(cmyk 0 0 0 0.15)"
+              stroke-width="0.25mm"/>
+      </layer>
+
+    </layers>
+  </canvas>
+
+</mdf>

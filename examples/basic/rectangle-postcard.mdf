@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Rectangle Postcard
+  A standard 148mm × 105mm (A6/postcard) document demonstrating
+  a typical multi-layer rectangular layout.
+
+  This example demonstrates:
+  - Standard rectangular canvas (most common case)
+  - Multiple named layers for content organization
+  - Text hierarchy: heading, body, caption
+  - sem: semantic annotations on content elements
+  - Image placeholder with alt-text
+  - Level 1 conformance
+
+  Dimensions: 148mm × 105mm (ISO A6 / standard postcard)
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Seaside Postcard</meta:title>
+    <meta:author>MDF Project</meta:author>
+    <meta:created>2026-05-02T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+    <meta:description>
+      A sample postcard in standard A6 format. Front side: full-bleed
+      photographic image with headline overlay. Back side: not shown.
+    </meta:description>
+    <meta:conformance level="1"/>
+
+    <sem:reading-order>
+      <sem:item ref="headline"/>
+      <sem:item ref="subhead"/>
+      <sem:item ref="photo"/>
+    </sem:reading-order>
+
+    <assets>
+      <font id="display-font"
+            family="Georgia"
+            weight="700"
+            style="italic"
+            src="fonts/Georgia-BoldItalic.woff2"
+            embed="false"/>
+      <font id="body-font"
+            family="Georgia"
+            weight="400"
+            src="fonts/Georgia-Regular.woff2"
+            embed="false"/>
+      <font id="caption-font"
+            family="sans-serif"
+            weight="400"
+            src="fonts/placeholder.woff2"
+            embed="false"/>
+    </assets>
+  </manifest>
+
+  <canvas width="148" height="105" units="mm"
+          boundary="M 0,0 L 148,0 L 148,105 L 0,105 Z"
+          sem:shape-type="rectangle"
+          sem:shape-meaning="custom">
+
+    <layers>
+
+      <!--
+        Sky-blue gradient background. Two overlapping rects simulate
+        a simple horizon: deep blue at top, lighter near centre.
+      -->
+      <layer id="sky-bg">
+        <rect x="0" y="0" width="148" height="60"
+              fill="color(cmyk 0.75 0.3 0 0.05)"
+              stroke="none"
+              sem:decorative="true"/>
+        <rect x="0" y="55" width="148" height="50"
+              fill="color(cmyk 0.45 0.1 0.1 0)"
+              stroke="none"
+              sem:decorative="true"/>
+      </layer>
+
+      <!--
+        Photo placeholder: full canvas image element.
+        In a real document this would be a raster photograph.
+      -->
+      <layer id="photo-layer">
+        <image id="photo"
+               src="assets/seaside-photo.jpg"
+               x="0" y="0" width="148" height="105"
+               object-fit="cover"
+               sem:role="figure"
+               sem:alt-text="Sunset over a calm Mediterranean bay with colourful fishing boats"
+               sem:reading-order="3"/>
+      </layer>
+
+      <!--
+        Gradient scrim at the bottom: a semi-transparent dark rectangle
+        ensures text is legible over the photo. In a complete renderer
+        this would use an actual gradient; here we use a flat dark wash.
+      -->
+      <layer id="scrim" blend-mode="multiply" opacity="0.55">
+        <rect x="0" y="55" width="148" height="50"
+              fill="color(cmyk 0.3 0.2 0.1 0.8)"
+              stroke="none"
+              sem:decorative="true"/>
+      </layer>
+
+      <!--
+        Headline text: large italic display face, white, bottom-aligned.
+      -->
+      <layer id="text-layer">
+        <text-block id="headline"
+                    font-ref="display-font"
+                    size="22pt"
+                    leading="28pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="heading"
+                    sem:heading-level="1"
+                    sem:reading-order="1">
+          <reflow-region shape="M 8,62 L 140,62 L 140,82 L 8,82 Z" padding="0"/>
+          <p>Greetings from the Coast</p>
+        </text-block>
+
+        <text-block id="subhead"
+                    font-ref="body-font"
+                    size="9pt"
+                    leading="13pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.1)"
+                    sem:role="caption"
+                    sem:reading-order="2">
+          <reflow-region shape="M 8,84 L 140,84 L 140,98 L 8,98 Z" padding="0"/>
+          <p>Wishing you were here — the water is perfect.</p>
+        </text-block>
+      </layer>
+
+      <!--
+        Thin white rule separating headline from subhead.
+      -->
+      <layer id="rule">
+        <line x1="8" y1="83.5" x2="90" y2="83.5"
+              stroke="color(cmyk 0 0 0 0)" stroke-width="0.3mm"
+              opacity="0.5"/>
+      </layer>
+
+    </layers>
+  </canvas>
+
+</mdf>

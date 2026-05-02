@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Multi-Column Article Layout
+  A magazine-style article demonstrating shape-aware typography features.
+
+  This example demonstrates:
+  - Multi-column text blocks (column-count / column-gap)
+  - Drop cap via a separate single-character text-block
+  - Pullquote styled differently from body text
+  - Inline <span> elements for colour/weight overrides within paragraphs
+  - Overflow linking between text blocks (§5.4.4)
+  - Mixed font weights in a single type family
+  - Text direction ltr with text-align=justify
+
+  Dimensions: 210mm × 297mm (ISO A4 portrait)
+  Conformance: Level 1
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>The Shape of Documents — MDF Typography Demo</meta:title>
+    <meta:author>MDF Project</meta:author>
+    <meta:created>2026-05-02T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+    <meta:description>
+      A demonstration of MDF's typography features: two-column article layout
+      with drop cap, pullquote, inline spans, and overflow linking.
+    </meta:description>
+    <meta:conformance level="1"/>
+
+    <sem:reading-order>
+      <sem:item ref="kicker"/>
+      <sem:item ref="article-title"/>
+      <sem:item ref="article-byline"/>
+      <sem:item ref="article-dateline"/>
+      <sem:item ref="article-body-col1"/>
+      <sem:item ref="pullquote-text"/>
+      <sem:item ref="article-body-col2"/>
+    </sem:reading-order>
+
+    <assets>
+      <!-- Display typeface for headline and kicker -->
+      <font id="display-font"
+            family="Georgia"
+            weight="700"
+            src="fonts/Georgia-Bold.woff2"
+            embed="false"/>
+      <font id="display-italic"
+            family="Georgia"
+            weight="400"
+            style="italic"
+            src="fonts/Georgia-Italic.woff2"
+            embed="false"/>
+      <!-- Body typeface for article prose -->
+      <font id="body-font"
+            family="Georgia"
+            weight="400"
+            src="fonts/Georgia-Regular.woff2"
+            embed="false"/>
+      <!-- Sans-serif for metadata and labels -->
+      <font id="sans-font"
+            family="sans-serif"
+            weight="400"
+            src="fonts/placeholder.woff2"
+            embed="false"/>
+      <font id="sans-bold"
+            family="sans-serif"
+            weight="700"
+            src="fonts/placeholder-bold.woff2"
+            embed="false"/>
+    </assets>
+  </manifest>
+
+  <canvas width="210" height="297" units="mm"
+          boundary="M 0,0 L 210,0 L 210,297 L 0,297 Z"
+          sem:shape-type="rectangle"
+          sem:shape-meaning="custom">
+
+    <layers>
+
+      <!-- White background -->
+      <layer id="background">
+        <rect x="0" y="0" width="210" height="297"
+              fill="color(cmyk 0 0 0 0)" stroke="none"
+              sem:decorative="true"/>
+      </layer>
+
+      <!-- ── Running header ──────────────────────────────────────────── -->
+      <layer id="running-header">
+        <line x1="15" y1="12" x2="195" y2="12"
+              stroke="color(cmyk 0 0 0 1)" stroke-width="0.4mm"
+              sem:decorative="true"/>
+        <text-block font-ref="sans-font"
+                    size="6pt"
+                    leading="8pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.6)"
+                    sem:decorative="true">
+          <reflow-region shape="M 15,14 L 100,14 L 100,20 L 15,20 Z" padding="0"/>
+          <p>MDF TYPOGRAPHY DEMO</p>
+        </text-block>
+        <text-block font-ref="sans-font"
+                    size="6pt"
+                    leading="8pt"
+                    text-align="right"
+                    color="color(cmyk 0 0 0 0.6)"
+                    sem:decorative="true">
+          <reflow-region shape="M 110,14 L 195,14 L 195,20 L 110,20 Z" padding="0"/>
+          <p>PAGE 1</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Kicker / section label ───────────────────────────────────── -->
+      <layer id="kicker-layer">
+        <text-block id="kicker"
+                    font-ref="sans-bold"
+                    size="7pt"
+                    leading="9pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.8 0.7 0)"
+                    tracking="0.1em"
+                    sem:role="label"
+                    sem:reading-order="1">
+          <reflow-region shape="M 15,26 L 195,26 L 195,33 L 15,33 Z" padding="0"/>
+          <p>DOCUMENT FORMATS · OPEN STANDARDS</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Article title ────────────────────────────────────────────── -->
+      <layer id="title-layer">
+        <text-block id="article-title"
+                    font-ref="display-font"
+                    size="28pt"
+                    leading="32pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 1)"
+                    sem:role="heading"
+                    sem:heading-level="1"
+                    sem:reading-order="2">
+          <reflow-region shape="M 15,35 L 195,35 L 195,70 L 15,70 Z" padding="0"/>
+          <p>The Shape of Documents</p>
+        </text-block>
+
+        <text-block font-ref="display-italic"
+                    size="13pt"
+                    leading="18pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.75)"
+                    sem:role="heading"
+                    sem:heading-level="2">
+          <reflow-region shape="M 15,71 L 195,71 L 195,84 L 15,84 Z" padding="0"/>
+          <p>How MDF puts geometry at the centre of document semantics</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Byline / dateline ────────────────────────────────────────── -->
+      <layer id="byline-layer">
+        <line x1="15" y1="87" x2="195" y2="87"
+              stroke="color(cmyk 0 0 0 0.2)" stroke-width="0.25mm"
+              sem:decorative="true"/>
+
+        <text-block id="article-byline"
+                    font-ref="sans-bold"
+                    size="7.5pt"
+                    leading="11pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 1)"
+                    sem:role="byline"
+                    sem:reading-order="3">
+          <reflow-region shape="M 15,90 L 130,90 L 130,98 L 15,98 Z" padding="0"/>
+          <p>By Miriam Hoffstedt, MDF Project</p>
+        </text-block>
+
+        <text-block id="article-dateline"
+                    font-ref="sans-font"
+                    size="7.5pt"
+                    leading="11pt"
+                    text-align="right"
+                    color="color(cmyk 0 0 0 0.55)"
+                    sem:role="dateline"
+                    sem:reading-order="4">
+          <reflow-region shape="M 130,90 L 195,90 L 195,98 L 130,98 Z" padding="0"/>
+          <p>2 May 2026</p>
+        </text-block>
+
+        <line x1="15" y1="100" x2="195" y2="100"
+              stroke="color(cmyk 0 0 0 0.2)" stroke-width="0.25mm"
+              sem:decorative="true"/>
+      </layer>
+
+      <!-- ── Drop cap + first column ─────────────────────────────────── -->
+      <!--
+        The drop cap is a separate text-block at a larger size, positioned
+        so that its baseline aligns with the first body line. The body text
+        flows beside it in a manual reflow-region that excludes the drop-cap
+        column.
+      -->
+      <layer id="drop-cap-layer">
+        <text-block font-ref="display-font"
+                    size="52pt"
+                    leading="50pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.8 0.7 0)"
+                    sem:decorative="true">
+          <!-- 18mm wide × 18mm tall drop cap box at article body start -->
+          <reflow-region shape="M 15,104 L 33,104 L 33,122 L 15,122 Z" padding="0"/>
+          <p>E</p>
+        </text-block>
+      </layer>
+
+      <!--
+        Body column 1: left half of the page, with space for the drop cap
+        on the first lines. Two reflow boxes combined logically here as
+        first-para and main column.
+      -->
+      <layer id="body-col1-layer">
+        <!-- First paragraph beside the drop cap -->
+        <text-block font-ref="body-font"
+                    size="9pt"
+                    leading="14pt"
+                    text-align="justify"
+                    color="color(cmyk 0 0 0 1)">
+          <!-- Region beside drop cap (first ~3 lines) -->
+          <reflow-region shape="M 35,104 L 102,104 L 102,122 L 35,122 Z" padding="0"/>
+          <p>very document format that came before MDF treated shape as decoration. A circle drawn in PDF is just a path element — it carries no information about the document itself.</p>
+        </text-block>
+
+        <!-- Remaining body column 1: full width below drop cap -->
+        <text-block id="article-body-col1"
+                    font-ref="body-font"
+                    size="9pt"
+                    leading="14pt"
+                    text-align="justify"
+                    color="color(cmyk 0 0 0 1)"
+                    sem:role="body"
+                    sem:reading-order="5">
+          <reflow-region shape="M 15,124 L 102,124 L 102,230 L 15,230 Z" padding="0"/>
+          <overflow mode="link" target="article-body-col2"/>
+          <p>MDF changes this. The canvas boundary path, and the shapes of reflow regions, carry semantic annotations in the <span color="color(cmyk 0 0.8 0.7 0)">sem:</span> namespace that describe what the shape <span style="italic">means</span>.</p>
+          <p>A circular business card, for instance, carries <span font-ref="sans-font" size="8pt" color="color(cmyk 0 0 0 0.65)">sem:shape-meaning="business-card"</span> on the canvas element. A screen reader can announce "This is a business card." before reading the first word. A document management system can sort by document type without parsing content.</p>
+          <p>This is not achievable in PDF or DOCX, where shape is purely visual geometry. In those formats, a circle is a circle — no more, no less.</p>
+          <p>The MDF specification defines a vocabulary of shape meanings: badges, stickers, labels, envelopes, certificates, packaging dielines, and more. Each value corresponds to a URI in the MDF vocabulary namespace, enabling linked-data consumers to reason about document types in a standardised way.</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Pullquote ────────────────────────────────────────────────── -->
+      <layer id="pullquote-layer">
+        <!-- Coloured left-rule accent -->
+        <rect x="109" y="135" width="2.5" height="38"
+              fill="color(cmyk 0 0.8 0.7 0)"
+              stroke="none"
+              sem:decorative="true"/>
+
+        <text-block id="pullquote-text"
+                    font-ref="display-italic"
+                    size="11.5pt"
+                    leading="17pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.85)"
+                    sem:role="pullquote"
+                    sem:reading-order="6">
+          <reflow-region shape="M 116,135 L 195,135 L 195,173 L 116,173 Z" padding="0"/>
+          <p>"Shape is not decoration. Shape is the first sentence of every document ever made."</p>
+        </text-block>
+
+        <text-block font-ref="sans-font"
+                    size="7pt"
+                    leading="9pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.8 0.7 0)">
+          <reflow-region shape="M 116,174 L 195,174 L 195,181 L 116,181 Z" padding="0"/>
+          <p>— MDF Specification, Chapter 7, §7.2.5</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Body column 2 (overflow target) ────────────────────────── -->
+      <layer id="body-col2-layer">
+        <text-block id="article-body-col2"
+                    font-ref="body-font"
+                    size="9pt"
+                    leading="14pt"
+                    text-align="justify"
+                    color="color(cmyk 0 0 0 1)"
+                    sem:role="body"
+                    sem:reading-order="7">
+          <reflow-region shape="M 109,124 L 195,124 L 195,230 L 109,230 Z" padding="0"/>
+          <p>Beyond shape semantics, MDF introduces shape-aware text reflow. Every text block in an MDF document flows inside an arbitrary SVG path — not just a rectangle. A circular business card has body text that wraps around the circular interior. A star-shaped sticker label has text that reflows through the star's polygonal interior region.</p>
+          <p>The scanline tessellation algorithm (Chapter 5, §5.4.2) handles this: it casts horizontal rays through the shape at each line height, computes the available line widths, and packs glyphs accordingly. The result is text that genuinely belongs to the shape rather than being clipped by it.</p>
+          <p>Together, shape semantics and shape reflow make MDF a format where the document's geometry is not scaffolding for content but is itself a dimension of meaning.</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Column gutter rule ──────────────────────────────────────── -->
+      <layer id="gutter" sem:decorative="true">
+        <line x1="104.5" y1="104" x2="104.5" y2="230"
+              stroke="color(cmyk 0 0 0 0.1)" stroke-width="0.25mm"/>
+      </layer>
+
+      <!-- ── Footer ──────────────────────────────────────────────────── -->
+      <layer id="footer">
+        <line x1="15" y1="235" x2="195" y2="235"
+              stroke="color(cmyk 0 0 0 0.2)" stroke-width="0.25mm"
+              sem:decorative="true"/>
+        <text-block font-ref="sans-font"
+                    size="6pt"
+                    leading="8pt"
+                    text-align="center"
+                    color="color(cmyk 0 0 0 0.45)"
+                    sem:role="footnote">
+          <reflow-region shape="M 15,238 L 195,238 L 195,246 L 15,246 Z" padding="0"/>
+          <p>MDF — Morphous Document Format v0.1 · morphousdoc.org · Apache 2.0 / Patent Non-Assertion</p>
+        </text-block>
+      </layer>
+
+    </layers>
+  </canvas>
+
+</mdf>

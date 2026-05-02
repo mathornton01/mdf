@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Accessible Event Flyer
+  An A5 event announcement with comprehensive semantic markup.
+
+  This example demonstrates:
+  - Complete sem: annotation on every content element
+  - Manifest-level <sem:reading-order> declaration
+  - sem:alt-text on images
+  - sem:role hierarchy (heading, body, caption, dateline, byline)
+  - sem:lang override for a bilingual element
+  - sem:decorative on purely decorative shapes
+  - meta: rights and license metadata
+  - JSON-LD linked data export readiness (§7.6)
+
+  Dimensions: 148mm × 210mm (ISO A5 portrait)
+  Conformance: Level 1
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>MDF Community Meetup — June 2026</meta:title>
+    <meta:author>MDF Project</meta:author>
+    <meta:created>2026-05-02T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+    <meta:description>
+      Event flyer for the June 2026 MDF community meetup. Includes date,
+      time, location, speaker lineup, and registration information.
+    </meta:description>
+    <meta:keywords>mdf, open format, meetup, community, event</meta:keywords>
+    <meta:rights>Copyright 2026 MDF Project. Licensed under CC BY 4.0.</meta:rights>
+    <meta:license-iri>https://creativecommons.org/licenses/by/4.0/</meta:license-iri>
+    <meta:conformance level="1"/>
+
+    <!--
+      Explicit reading order ensures assistive technology announces content
+      in the logical sequence regardless of visual layout or z-order.
+    -->
+    <sem:reading-order>
+      <sem:item ref="event-logo"/>
+      <sem:item ref="event-title"/>
+      <sem:item ref="event-date"/>
+      <sem:item ref="event-location"/>
+      <sem:item ref="speaker-heading"/>
+      <sem:item ref="speaker-1-name"/>
+      <sem:item ref="speaker-1-topic"/>
+      <sem:item ref="speaker-2-name"/>
+      <sem:item ref="speaker-2-topic"/>
+      <sem:item ref="register-heading"/>
+      <sem:item ref="register-url"/>
+      <sem:item ref="tagline-bilingual"/>
+    </sem:reading-order>
+
+    <assets>
+      <font id="display-font"
+            family="sans-serif"
+            weight="700"
+            src="fonts/placeholder-bold.woff2"
+            embed="false"/>
+      <font id="body-font"
+            family="sans-serif"
+            weight="400"
+            src="fonts/placeholder.woff2"
+            embed="false"/>
+      <font id="mono-font"
+            family="monospace"
+            weight="400"
+            src="fonts/placeholder-mono.woff2"
+            embed="false"/>
+    </assets>
+  </manifest>
+
+  <canvas width="148" height="210" units="mm"
+          boundary="M 0,0 L 148,0 L 148,210 L 0,210 Z"
+          sem:shape-type="rectangle"
+          sem:shape-meaning="custom"
+          sem:shape-context="Standard A5 portrait flyer for print and digital distribution">
+
+    <layers>
+
+      <!-- ── Background ──────────────────────────────────────────────── -->
+      <layer id="background">
+        <!-- Deep indigo page background -->
+        <rect x="0" y="0" width="148" height="210"
+              fill="color(cmyk 0.95 0.8 0.1 0.45)"
+              stroke="none"
+              sem:decorative="true"/>
+        <!-- Subtle geometric accent: concentric arcs top-right corner -->
+        <path d="M 148,0 A 40,40 0 0,0 108,40"
+              fill="none"
+              stroke="color(cmyk 0.7 0.5 0 0.3)"
+              stroke-width="0.5mm"
+              opacity="0.4"
+              sem:decorative="true"/>
+        <path d="M 148,0 A 70,70 0 0,0 78,70"
+              fill="none"
+              stroke="color(cmyk 0.7 0.5 0 0.3)"
+              stroke-width="0.5mm"
+              opacity="0.25"
+              sem:decorative="true"/>
+      </layer>
+
+      <!-- ── Logo area ───────────────────────────────────────────────── -->
+      <layer id="logo-layer">
+        <!--
+          Logo image: the alt-text is the primary label for screen readers.
+          The image role "logo" suppresses it from the general reading order
+          but makes it available in brand/identity queries.
+        -->
+        <image id="event-logo"
+               src="assets/mdf-logo.svg"
+               x="10" y="10" width="30" height="10"
+               object-fit="contain"
+               object-position="left center"
+               sem:role="logo"
+               sem:alt-text="MDF Project logo"/>
+      </layer>
+
+      <!-- ── Header band ─────────────────────────────────────────────── -->
+      <layer id="header-band">
+        <!-- White semi-transparent band behind the event title -->
+        <rect x="0" y="28" width="148" height="42"
+              fill="color(cmyk 0 0 0 0)"
+              opacity="0.08"
+              sem:decorative="true"/>
+
+        <text-block id="event-title"
+                    font-ref="display-font"
+                    size="20pt"
+                    leading="25pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="heading"
+                    sem:heading-level="1">
+          <reflow-region shape="M 10,30 L 138,30 L 138,60 L 10,60 Z" padding="0"/>
+          <p>MDF Community Meetup</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Date and Location ───────────────────────────────────────── -->
+      <layer id="dateline-layer">
+        <!-- Date icon placeholder -->
+        <rect x="10" y="68" width="6" height="6"
+              fill="color(cmyk 0 0.4 0.9 0)"
+              stroke="none"
+              sem:decorative="true"/>
+
+        <text-block id="event-date"
+                    font-ref="display-font"
+                    size="10pt"
+                    leading="14pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.4 0.9 0)"
+                    sem:role="dateline">
+          <reflow-region shape="M 20,67 L 138,67 L 138,76 L 20,76 Z" padding="0"/>
+          <p>Saturday, 14 June 2026 — 10:00 to 17:00 UTC</p>
+        </text-block>
+
+        <!-- Location pin placeholder -->
+        <rect x="10" y="80" width="6" height="6"
+              fill="color(cmyk 0 0.4 0.9 0)"
+              stroke="none"
+              sem:decorative="true"/>
+
+        <text-block id="event-location"
+                    font-ref="body-font"
+                    size="9pt"
+                    leading="13pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="body">
+          <reflow-region shape="M 20,79 L 138,79 L 138,90 L 20,90 Z" padding="0"/>
+          <p>Online — Zoom webinar + async chat on Discord</p>
+        </text-block>
+      </layer>
+
+      <!-- Separator rule -->
+      <layer id="rule-1" sem:decorative="true">
+        <line x1="10" y1="96" x2="138" y2="96"
+              stroke="color(cmyk 0 0 0 0)" stroke-width="0.3mm" opacity="0.3"/>
+      </layer>
+
+      <!-- ── Speaker lineup ──────────────────────────────────────────── -->
+      <layer id="speakers-layer">
+        <text-block id="speaker-heading"
+                    font-ref="display-font"
+                    size="8pt"
+                    leading="11pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.4 0.9 0)"
+                    sem:role="heading"
+                    sem:heading-level="2">
+          <reflow-region shape="M 10,100 L 138,100 L 138,109 L 10,109 Z" padding="0"/>
+          <p>SPEAKERS</p>
+        </text-block>
+
+        <!-- Speaker 1 -->
+        <text-block id="speaker-1-name"
+                    font-ref="display-font"
+                    size="10pt"
+                    leading="14pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="byline">
+          <reflow-region shape="M 10,112 L 138,112 L 138,121 L 10,121 Z" padding="0"/>
+          <p>Dr. Anya Patel</p>
+        </text-block>
+
+        <text-block id="speaker-1-topic"
+                    font-ref="body-font"
+                    size="8.5pt"
+                    leading="12pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.2)"
+                    sem:role="caption">
+          <reflow-region shape="M 10,122 L 138,122 L 138,133 L 10,133 Z" padding="0"/>
+          <p>"Shape as Data: Semantic Geometry in Open Document Formats"</p>
+        </text-block>
+
+        <!-- Speaker 2 -->
+        <text-block id="speaker-2-name"
+                    font-ref="display-font"
+                    size="10pt"
+                    leading="14pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="byline">
+          <reflow-region shape="M 10,140 L 138,140 L 138,149 L 10,149 Z" padding="0"/>
+          <p>Marcus Oduya</p>
+        </text-block>
+
+        <text-block id="speaker-2-topic"
+                    font-ref="body-font"
+                    size="8.5pt"
+                    leading="12pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0.2)"
+                    sem:role="caption">
+          <reflow-region shape="M 10,150 L 138,150 L 138,161 L 10,161 Z" padding="0"/>
+          <p>"Building an MDF Renderer in 48 Hours: Lessons Learned"</p>
+        </text-block>
+      </layer>
+
+      <!-- Separator rule -->
+      <layer id="rule-2" sem:decorative="true">
+        <line x1="10" y1="167" x2="138" y2="167"
+              stroke="color(cmyk 0 0 0 0)" stroke-width="0.3mm" opacity="0.3"/>
+      </layer>
+
+      <!-- ── Registration CTA ────────────────────────────────────────── -->
+      <layer id="cta-layer">
+        <text-block id="register-heading"
+                    font-ref="display-font"
+                    size="8pt"
+                    leading="11pt"
+                    text-align="left"
+                    color="color(cmyk 0 0.4 0.9 0)"
+                    sem:role="heading"
+                    sem:heading-level="2">
+          <reflow-region shape="M 10,171 L 138,171 L 138,180 L 10,180 Z" padding="0"/>
+          <p>FREE — REGISTER NOW</p>
+        </text-block>
+
+        <text-block id="register-url"
+                    font-ref="mono-font"
+                    size="9pt"
+                    leading="13pt"
+                    text-align="left"
+                    color="color(cmyk 0 0 0 0)"
+                    sem:role="body">
+          <reflow-region shape="M 10,181 L 138,181 L 138,190 L 10,190 Z" padding="0"/>
+          <p>morphousdoc.org/meetup-june-2026</p>
+        </text-block>
+      </layer>
+
+      <!-- ── Bilingual tagline (language override demo) ─────────────── -->
+      <layer id="tagline-layer">
+        <!--
+          This text block demonstrates sem:lang override. The document language
+          is en-US but this footer contains a French tagline. The sem:lang
+          attribute instructs screen readers and hyphenation to switch language.
+        -->
+        <text-block id="tagline-bilingual"
+                    font-ref="body-font"
+                    size="6.5pt"
+                    leading="9pt"
+                    text-align="center"
+                    color="color(cmyk 0 0 0 0.4)"
+                    sem:role="caption"
+                    sem:lang="fr">
+          <reflow-region shape="M 10,198 L 138,198 L 138,207 L 10,207 Z" padding="0"/>
+          <p>Le format ouvert pour documents de toutes formes.</p>
+        </text-block>
+      </layer>
+
+    </layers>
+  </canvas>
+
+</mdf>

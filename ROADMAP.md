@@ -6,10 +6,12 @@ Goal: establish the core spec architecture and a working proof-of-concept render
 
 - [x] Project structure and governance documents
 - [x] Spec chapters: overview, file structure, canvas/shape boundary, typography, print production
-- [ ] Spec chapters: manifest, layer model, color system, texture system, semantics, accessibility, conformance, binary pack
-- [ ] XML Schema definitions for core elements
-- [ ] Python reference implementation: parser + basic renderer
-- [ ] Example documents: circle, star, business card, die-cut sticker
+- [x] Spec chapters: manifest, layer model, color system, semantics, conformance
+- [ ] Spec chapters: texture system, accessibility (standalone chapter), binary pack
+- [x] XML Schema definitions for core elements (XSD for all four namespaces)
+- [x] Python reference implementation: parser + SVG renderer
+- [x] Python SVG renderer: full color notation support (cmyk, gray, lab, spot, rgba)
+- [x] Example documents: shapes (circle, star, heart, hexagon, shield), basic, color, semantics, typography, print-production
 - [ ] Conformance suite Level 1 (basic)
 
 ## v0.2 — Shape Reflow

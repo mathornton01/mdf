@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MDF Example: Spot Color Product Label
+  A wine bottle label demonstrating Level 2 (print) production features.
+
+  This example demonstrates:
+  - Level 2 conformance: CMYK + spot color on coated stock
+  - Manifest: ICC profile, spot color declaration, print-intent
+  - Canvas: die-cut boundary with bleed, registration marks
+  - Layer roles: body, spot-color-plate, registration-marks, bleed-content
+  - Spot color usage: spot(pantone-875c) — metallic silver
+  - Overprint on spot-color-plate layer
+  - Color in CMYK throughout body content (Level 2 requirement)
+  - Embedded fonts (Level 2 requirement)
+
+  Dimensions: 90mm × 120mm (tall rectangular wine label)
+  Shape: standard rectangle with rounded top corners
+  Print spec: FOGRA39 coated offset, 300dpi, spot UV on logo area
+-->
+<mdf version="0.1"
+     xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:print="https://morphousdoc.org/ns/print/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+
+  <manifest>
+    <meta:title>Chateau Morphous — Cabernet Sauvignon 2022</meta:title>
+    <meta:author>MDF Project</meta:author>
+    <meta:created>2026-05-02T00:00:00Z</meta:created>
+    <meta:language>en-US</meta:language>
+    <meta:description>
+      Front label for Chateau Morphous Cabernet Sauvignon 2022.
+      Two-spot job: Pantone 875 C (metallic silver) for the crest and border,
+      over CMYK deep burgundy background. Die-cut rounded-top rectangle.
+    </meta:description>
+    <meta:conformance level="2"/>
+
+    <assets>
+      <font id="display-font"
+            family="Playfair Display"
+            weight="700"
+            src="fonts/PlayfairDisplay-Bold.woff2"
+            embed="true"/>
+      <font id="display-sc"
+            family="Playfair Display SC"
+            weight="400"
+            src="fonts/PlayfairDisplaySC-Regular.woff2"
+            embed="true"/>
+      <font id="body-font"
+            family="Cormorant Garamond"
+            weight="400"
+            src="fonts/CormorantGaramond-Regular.woff2"
+            embed="true"/>
+      <font id="body-italic"
+            family="Cormorant Garamond"
+            weight="400"
+            style="italic"
+            src="fonts/CormorantGaramond-Italic.woff2"
+            embed="true"/>
+
+      <icc-profile id="fogra39"
+                   src="icc/ISOcoated_v2_eci.icc"
+                   description="ISO Coated v2 (FOGRA39)"/>
+
+      <spot-color id="pantone-875c"
+                  name="Pantone 875 C"
+                  cmyk="0 0.05 0.25 0.4"
+                  lab="66.2 2.1 14.8"
+                  plate-name="Pantone 875 C (Metallic Silver)"/>
+    </assets>
+
+    <print:intent>
+      <print:substrate>coated</print:substrate>
+      <print:color-mode>cmyk</print:color-mode>
+      <print:icc-profile ref="fogra39"/>
+      <print:resolution target="300dpi"/>
+      <print:press-type>offset-litho</print:press-type>
+    </print:intent>
+  </manifest>
+
+  <!--
+    Canvas: 90mm × 120mm.
+    Die-cut boundary: rounded corners on top (r=8mm), square on bottom.
+    Bleed: 3mm on all sides.
+
+    Path: M 8,0 L 82,0 A 8,8 0 0,1 90,8 L 90,120 L 0,120 L 0,8 A 8,8 0 0,1 8,0 Z
+    (Starting top-left corner of the arc, going clockwise)
+  -->
+  <canvas width="90" height="120" units="mm"
+          boundary="M 8,0 L 82,0 A 8,8 0 0,1 90,8 L 90,120 L 0,120 L 0,8 A 8,8 0 0,1 8,0 Z"
+          print:die-cut="true"
+          print:die-cut-type="cut"
+          print:bleed="3mm"
+          sem:shape-type="rounded-rectangle"
+          sem:shape-meaning="label"
+          sem:shape-context="Wine bottle front label, rounded top, square base to grip bottle curvature">
+
+    <print:marks>
+      <print:registration-marks style="crosshair" offset="8mm"/>
+      <print:crop-marks length="5mm" weight="0.25pt" offset="3mm"/>
+    </print:marks>
+
+    <layers>
+
+      <!--
+        BLEED LAYER: Background fill extending into bleed zone.
+        Deep burgundy CMYK, path extends 3mm beyond canvas on all sides.
+        print:role="bleed-content" flags this for print processors.
+      -->
+      <layer id="bleed-bg"
+             print:role="bleed-content">
+        <!-- Bleed-extended rectangle: -3mm to 93mm × -3mm to 123mm -->
+        <rect x="-3" y="-3" width="96" height="126"
+              fill="color(cmyk 0.2 0.95 0.6 0.5)"
+              stroke="none"
+              sem:decorative="true"/>
+      </layer>
+
+      <!--
+        BODY LAYER: Main design content.
+        All fills in CMYK (Level 2 requirement for body layers).
+      -->
+      <layer id="body" print:role="body">
+
+        <!-- Narrow cream inner border, inset 4mm from die-cut -->
+        <path d="M 11,4 L 79,4 A 5,5 0 0,1 84,9 L 84,116 L 6,116 L 6,9 A 5,5 0 0,1 11,4 Z"
+              fill="none"
+              stroke="color(cmyk 0 0.05 0.15 0.05)"
+              stroke-width="0.4mm"
+              sem:decorative="true"/>
+
+        <!-- Decorative thin double-rule below top arch -->
+        <line x1="10" y1="14" x2="80" y2="14"
+              stroke="color(cmyk 0 0.05 0.15 0.05)" stroke-width="0.2mm"
+              sem:decorative="true"/>
+        <line x1="10" y1="16" x2="80" y2="16"
+              stroke="color(cmyk 0 0.05 0.15 0.05)" stroke-width="0.5mm"
+              sem:decorative="true"/>
+
+        <!-- Estate name: large small-caps at top -->
+        <text-block id="estate-name"
+                    font-ref="display-sc"
+                    size="13pt"
+                    leading="17pt"
+                    text-align="center"
+                    color="color(cmyk 0 0.05 0.15 0.05)"
+                    tracking="0.12em"
+                    sem:role="heading"
+                    sem:heading-level="1">
+          <reflow-region shape="M 10,19 L 80,19 L 80,30 L 10,30 Z" padding="0"/>
+          <p>Chateau Morphous</p>
+        </text-block>
+
+        <!-- Crest placeholder: a circle representing an emblem image -->
+        <!-- In production this would be an <image> with a heraldic crest SVG -->
+        <circle cx="45" cy="52" r="18"
+                fill="color(cmyk 0.15 0.8 0.5 0.4)"
+                stroke="color(cmyk 0 0.05 0.15 0.05)"
+                stroke-width="0.3mm"
+                sem:decorative="true"/>
+        <!-- Inner crest ring -->
+        <circle cx="45" cy="52" r="14"
+                fill="none"
+                stroke="color(cmyk 0 0.05 0.15 0.05)"
+                stroke-width="0.2mm"
+                sem:decorative="true"/>
+
+        <!-- Divider rules flanking the wine type -->
+        <line x1="10" y1="75" x2="31" y2="75"
+              stroke="color(cmyk 0 0.05 0.15 0.05)" stroke-width="0.25mm"
+              sem:decorative="true"/>
+        <line x1="59" y1="75" x2="80" y2="75"
+              stroke="color(cmyk 0 0.05 0.15 0.05)" stroke-width="0.25mm"
+              sem:decorative="true"/>
+
+        <!-- Wine variety -->
+        <text-block id="wine-variety"
+                    font-ref="display-font"
+                    size="9pt"
+                    leading="12pt"
+                    text-align="center"
+                    color="color(cmyk 0 0.05 0.15 0.05)"
+                    sem:role="heading"
+                    sem:heading-level="2">
+          <reflow-region shape="M 30,69 L 60,69 L 60,78 L 30,78 Z" padding="0"/>
+          <p>Cabernet</p>
+        </text-block>
+        <text-block font-ref="display-sc"
+                    size="7pt"
+                    leading="9pt"
+                    text-align="center"
+                    color="color(cmyk 0 0.05 0.15 0.05)"
+                    tracking="0.08em">
+          <reflow-region shape="M 30,78 L 60,78 L 60,85 L 30,85 Z" padding="0"/>
+          <p>Sauvignon</p>
+        </text-block>
+
+        <!-- Vintage year -->
+        <text-block id="vintage"
+                    font-ref="display-sc"
+                    size="11pt"
+                    leading="14pt"
+                    text-align="center"
+                    color="color(cmyk 0 0.05 0.15 0.05)"
+                    tracking="0.15em">
+          <reflow-region shape="M 10,88 L 80,88 L 80,97 L 10,97 Z" padding="0"/>
+          <p>2022</p>
+        </text-block>
+
+        <!-- Tasting notes in small italic -->
+        <text-block id="tasting-notes"
+                    font-ref="body-italic"
+                    size="6pt"
+                    leading="8.5pt"
+                    text-align="center"
+                    color="color(cmyk 0 0.05 0.15 0.05)"
+                    sem:role="caption">
+          <reflow-region shape="M 12,99 L 78,99 L 78,111 L 12,111 Z" padding="0"/>
+          <p>Dark cherry, cedar, and tobacco on the nose. Full-bodied with firm tannins. 13.5% alc/vol. 750 mL.</p>
+        </text-block>
+
+        <!-- Bottom rule -->
+        <line x1="10" y1="112" x2="80" y2="112"
+              stroke="color(cmyk 0 0.05 0.15 0.05)" stroke-width="0.4mm"
+              sem:decorative="true"/>
+
+      </layer>
+
+      <!--
+        SPOT COLOR PLATE: Pantone 875 C (Metallic Silver)
+        This layer prints as a separate press plate.
+        Only the crest ring and border elements are metallic silver.
+        print:overprint="true" means the silver sits on top of the CMYK
+        without knocking out the background (correct for metallic inks).
+        print:visible-in-render="false" hides this from screen preview.
+      -->
+      <layer id="silver-plate"
+             print:role="spot-color-plate"
+             print:overprint="true"
+             print:visible-in-render="false">
+        <!--
+          The spot() color function references the id of a declared spot-color.
+          Tint = 1.0 (full ink density).
+        -->
+        <circle cx="45" cy="52" r="18"
+                fill="none"
+                stroke="spot(pantone-875c, 1.0)"
+                stroke-width="0.8mm"/>
+        <!-- Silver inner label border -->
+        <path d="M 11,4 L 79,4 A 5,5 0 0,1 84,9 L 84,116 L 6,116 L 6,9 A 5,5 0 0,1 11,4 Z"
+              fill="none"
+              stroke="spot(pantone-875c, 1.0)"
+              stroke-width="0.6mm"/>
+      </layer>
+
+      <!--
+        REGISTRATION MARKS LAYER
+        Empty here — registration marks are auto-generated by the print processor
+        from the <print:marks> declaration on the canvas.
+        print:visible-in-render="false" keeps them out of screen preview.
+      -->
+      <layer id="reg-marks"
+             print:role="registration-marks"
+             print:visible-in-render="false">
+        <!-- Auto-generated by processor from canvas print:marks declaration -->
+      </layer>
+
+    </layers>
+  </canvas>
+
+</mdf>

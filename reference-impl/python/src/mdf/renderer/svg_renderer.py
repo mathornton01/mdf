@@ -83,53 +83,188 @@ def render_svg(doc: MDFDocument, proof: bool = False, canvas_index: int = 0) -> 
 
 
 def _cmyk_to_rgb(c: float, m: float, y: float, k: float) -> tuple[int, int, int]:
-    """Convert CMYK floats (0–1) to sRGB integers (0–255), D50 approximate."""
+    """Convert CMYK floats (0–1) to sRGB integers (0–255), simple device approximation."""
     r = 255.0 * (1.0 - c) * (1.0 - k)
     g = 255.0 * (1.0 - m) * (1.0 - k)
     b = 255.0 * (1.0 - y) * (1.0 - k)
     return int(round(r)), int(round(g)), int(round(b))
 
 
-# Matches:  color(cmyk C M Y K)
+def _lab_to_rgb(L: float, a: float, b_val: float) -> tuple[int, int, int]:
+    """
+    Convert CIE L*a*b* to sRGB integers (0–255).
+
+    Uses the D65 illuminant and sRGB primaries.  Values are clamped to the
+    sRGB gamut after conversion; out-of-gamut Lab values are silently clipped.
+    """
+    # Lab → XYZ (D65)
+    fy = (L + 16.0) / 116.0
+    fx = a / 500.0 + fy
+    fz = fy - b_val / 200.0
+
+    def _f_inv(t: float) -> float:
+        if t > 0.206897:
+            return t ** 3
+        return (t - 16.0 / 116.0) / 7.787
+
+    x = _f_inv(fx) * 95.047
+    y = _f_inv(fy) * 100.000
+    z = _f_inv(fz) * 108.883
+
+    # XYZ → linear sRGB
+    x /= 100.0
+    y /= 100.0
+    z /= 100.0
+    r_lin =  3.2406 * x - 1.5372 * y - 0.4986 * z
+    g_lin = -0.9689 * x + 1.8758 * y + 0.0415 * z
+    b_lin =  0.0557 * x - 0.2040 * y + 1.0570 * z
+
+    # Gamma-encode (sRGB transfer function)
+    def _gamma(c: float) -> float:
+        c = max(0.0, min(1.0, c))
+        if c <= 0.0031308:
+            return 12.92 * c
+        return 1.055 * (c ** (1.0 / 2.4)) - 0.055
+
+    return (
+        int(round(_gamma(r_lin) * 255.0)),
+        int(round(_gamma(g_lin) * 255.0)),
+        int(round(_gamma(b_lin) * 255.0)),
+    )
+
+
+# Regex patterns for MDF color notations (§4.2)
+# color(cmyk C M Y K)
 _CMYK_RE = re.compile(
     r"color\(\s*cmyk\s+"
     r"([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)",
     re.IGNORECASE,
 )
 
+# color(gray L)  — §4.2.6 grayscale
+_GRAY_RE = re.compile(
+    r"color\(\s*gray\s+([\d.]+)\s*\)",
+    re.IGNORECASE,
+)
 
-def _parse_color(color_str: Optional[str]) -> str:
+# color(lab L a b)  — §4.2.4 CIE L*a*b*
+_LAB_RE = re.compile(
+    r"color\(\s*lab\s+"
+    r"([\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\)",
+    re.IGNORECASE,
+)
+
+# spot(id) or spot(id, tint)  — §4.2.5 spot color reference
+_SPOT_RE = re.compile(
+    r"spot\(\s*([A-Za-z0-9_-]+)\s*(?:,\s*([\d.]+))?\s*\)",
+    re.IGNORECASE,
+)
+
+# rgba(r, g, b, a) — §4.2.2 with alpha
+_RGBA_RE = re.compile(
+    r"rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)",
+    re.IGNORECASE,
+)
+
+
+def _parse_color(
+    color_str: Optional[str],
+    spot_colors: Optional[dict] = None,
+) -> str:
     """
     Convert an MDF color value to a CSS/SVG color string.
 
-    Handles:
-    - ``color(cmyk C M Y K)``  → approximate RGB conversion for screen display
-    - ``#rrggbb`` / ``#rgb``   → passed through unchanged
-    - CSS named colors          → passed through unchanged
+    Handles all MDF color notations (§4.2):
+    - ``color(cmyk C M Y K)``   → approximate sRGB conversion for screen display
+    - ``color(gray L)``         → grayscale percentage converted to sRGB
+    - ``color(lab L a b)``      → CIE L*a*b* converted to sRGB (D65)
+    - ``spot(id[, tint])``      → look up the spot color's CMYK approximation,
+                                   apply tint, convert to sRGB
+    - ``#rrggbb`` / ``#rrggbbaa`` / ``#rgb`` → passed through (SVG handles these)
+    - ``rgb(r, g, b)``          → passed through
+    - ``rgba(r, g, b, a)``      → converted to ``rgba()`` with SVG-compatible syntax
+    - ``hsl(h, s%, l%)``        → passed through
     - ``none``                  → passed through unchanged
+    - Named CSS colors          → passed through unchanged
+    - Unknown / empty           → falls back to ``black``
 
-    Unknown / empty values fall back to ``black``.
+    Parameters
+    ----------
+    color_str:
+        The raw MDF color attribute value.
+    spot_colors:
+        Optional dict mapping spot color ids to
+        :class:`~mdf.model.document.SpotColor` objects, used to resolve
+        ``spot()`` references.  When ``None``, spot colors are approximated
+        as a neutral 50% gray.
     """
     if not color_str:
         return "black"
     color_str = color_str.strip()
 
+    # ── color(cmyk C M Y K) ───────────────────────────────────────────────
     m = _CMYK_RE.match(color_str)
     if m:
         c, mg, y, k = (float(m.group(i)) for i in range(1, 5))
         r, g, b = _cmyk_to_rgb(c, mg, y, k)
         return f"rgb({r},{g},{b})"
 
-    # Pass through CSS-compatible values unchanged
+    # ── color(gray L) ─────────────────────────────────────────────────────
+    m = _GRAY_RE.match(color_str)
+    if m:
+        L = float(m.group(1))
+        # L is in [0.0, 1.0]; 0.0 = black, 1.0 = white
+        v = int(round(max(0.0, min(1.0, L)) * 255.0))
+        return f"rgb({v},{v},{v})"
+
+    # ── color(lab L a b) ──────────────────────────────────────────────────
+    m = _LAB_RE.match(color_str)
+    if m:
+        L_val = float(m.group(1))
+        a_val = float(m.group(2))
+        b_val = float(m.group(3))
+        r, g, b_out = _lab_to_rgb(L_val, a_val, b_val)
+        return f"rgb({r},{g},{b_out})"
+
+    # ── spot(id[, tint]) ──────────────────────────────────────────────────
+    m = _SPOT_RE.match(color_str)
+    if m:
+        spot_id = m.group(1)
+        tint = float(m.group(2)) if m.group(2) else 1.0
+        tint = max(0.0, min(1.0, tint))
+
+        if spot_colors and spot_id in spot_colors:
+            sc = spot_colors[spot_id]
+            c, mg, y, k = sc.cmyk_approximation
+            # Apply tint: tint 0.0 = no ink (white on coated), 1.0 = full ink
+            c, mg, y, k = c * tint, mg * tint, y * tint, k * tint
+            r, g, b = _cmyk_to_rgb(c, mg, y, k)
+            return f"rgb({r},{g},{b})"
+        else:
+            # Unknown spot color — render as a neutral warm gray so the
+            # document is still visually coherent (not magenta).
+            v = int(round((1.0 - tint * 0.7) * 255.0))
+            return f"rgb({v},{v},{v})"
+
+    # ── rgba(r, g, b, a) ─────────────────────────────────────────────────
+    # MDF rgba uses floats in [0,255] for rgb and [0,1] for alpha.
+    # CSS rgba() accepts the same syntax — pass through unchanged.
+    m = _RGBA_RE.match(color_str)
+    if m:
+        # Normalise: if r/g/b > 1 they are 0–255 integers; keep as-is.
+        return color_str  # CSS rgba() is identical syntax
+
+    # ── CSS-compatible pass-through ──────────────────────────────────────
+    lower = color_str.lower()
     if (
-        color_str.lower() == "none"
+        lower == "none"
         or color_str.startswith("#")
-        or color_str.lower().startswith("rgb")
-        or color_str.lower().startswith("hsl")
+        or lower.startswith("rgb")
+        or lower.startswith("hsl")
     ):
         return color_str
 
-    # Named color or unknown — SVG will handle it
+    # Named CSS color or unknown — SVG/browser will handle it
     return color_str
 
 
@@ -188,6 +323,12 @@ class _SVGRenderer:
         self._canvas = canvas
         self._proof = proof
         self._lines: list[str] = []
+        # Spot color lookup dict — populated once from the manifest
+        self._spot_colors: dict = doc.manifest.spot_colors if doc.manifest.spot_colors else {}
+
+    def _color(self, color_str: Optional[str]) -> str:
+        """Resolve an MDF color string to a CSS color, using the document's spot colors."""
+        return _parse_color(color_str, spot_colors=self._spot_colors)
 
     # ------------------------------------------------------------------
     # Top-level render
@@ -325,7 +466,7 @@ class _SVGRenderer:
 
         for colour_key in ("fill", "stroke", "color"):
             if colour_key in attrs:
-                attrs[colour_key] = _parse_color(attrs[colour_key])
+                attrs[colour_key] = self._color(attrs[colour_key])
 
         # 'd' is used by SVG for <path>; MDF may also spell it 'path'
         if tag == "path" and "path" in attrs and "d" not in attrs:
@@ -370,7 +511,7 @@ class _SVGRenderer:
         3. Fall back to bare SVG <text>/<tspan> centred on the canvas when
            no usable rectangle is available.
         """
-        fill        = _parse_color(block.color)
+        fill        = self._color(block.color)
         font_family = self._resolve_font_family(block.font_ref)
         font_size   = self._parse_size_to_px(block.size, default=12.0)
         line_height = self._parse_size_to_px(block.leading, default=font_size * 1.4)
@@ -445,7 +586,7 @@ class _SVGRenderer:
         indent: str,
     ) -> None:
         """Emit one HTML <p> element for a TextParagraph."""
-        para_fill   = _parse_color(para.color) if para.color else parent_fill
+        para_fill   = self._color(para.color) if para.color else parent_fill
         para_family = self._resolve_font_family(para.font_ref) if para.font_ref else parent_font_family
         para_size   = self._parse_size_to_px(para.size) if para.size else parent_font_size
 
@@ -465,7 +606,7 @@ class _SVGRenderer:
 
             span_parts: list[str] = []
             if span.color:
-                span_parts.append(f"color:{_parse_color(span.color)}")
+                span_parts.append(f"color:{self._color(span.color)}")
             if span.font_ref:
                 span_parts.append(f"font-family:{_esc(self._resolve_font_family(span.font_ref))}")
             if span.size:
@@ -518,7 +659,7 @@ class _SVGRenderer:
             if not plain:
                 dy += line_height
                 continue
-            para_fill = _parse_color(para.color) if para.color else fill
+            para_fill = self._color(para.color) if para.color else fill
             self._lines.append(
                 f'{indent}  <tspan x="{cx:g}" dy="{dy:.2f}"'
                 f' fill="{para_fill}">{_esc(plain)}</tspan>'
