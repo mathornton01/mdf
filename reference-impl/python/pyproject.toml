@@ -12,16 +12,21 @@ requires-python = ">=3.11"
 
 dependencies = [
     "lxml>=4.9",          # XML parsing
-    "pycairo>=1.25",      # Cairo rendering backend
     "Pillow>=10.0",       # Image handling
     "fonttools>=4.40",    # Font loading and inspection
-    "harfbuzz>=0.1",      # Text shaping (PyHarfBuzz bindings)
-    "pypdf>=4.0",         # PDF export
+    "pypdf>=4.0",         # PDF reading/manipulation
+    "reportlab>=4.0",     # PDF generation (mdf render --format pdf)
     "jsonschema>=4.0",    # Manifest schema validation
     "click>=8.0",         # CLI
 ]
 
 [project.optional-dependencies]
+# Cairo backend (optional): enables high-quality PNG/SVG rasterization.
+# Requires system libcairo-dev before pip install.
+cairo = [
+    "pycairo>=1.25",
+    "cairosvg>=2.7",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",

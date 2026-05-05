@@ -19,6 +19,7 @@ import click
 
 from mdf.parser import MDFParseError, parse_file
 from mdf.renderer.svg_renderer import render_svg
+from mdf.renderer.pdf_renderer import render_pdf
 
 
 # ---------------------------------------------------------------------------
@@ -88,12 +89,7 @@ def render(
         _render_png(doc, output, proof=proof, dpi=dpi, canvas_index=canvas_index)
 
     elif output_format == "pdf":
-        click.echo(
-            "PDF output requires the Cairo backend (not yet implemented). "
-            "Use --format svg and convert with Inkscape or similar.",
-            err=True,
-        )
-        sys.exit(1)
+        _render_pdf(doc, output, proof=proof, canvas_index=canvas_index)
 
 
 def _render_svg(
@@ -160,6 +156,39 @@ def _render_png(
         sys.exit(1)
 
     click.echo(f"Rendered PNG ({dpi} dpi) → {output_path}")
+
+
+def _render_pdf(
+    doc: object,
+    output_path: str,
+    proof: bool = False,
+    canvas_index: int = 0,
+) -> None:
+    """Render to PDF using reportlab and write to output_path."""
+    try:
+        pdf_bytes = render_pdf(doc, proof=proof, canvas_index=canvas_index)  # type: ignore[arg-type]
+    except ImportError as exc:
+        click.echo(
+            f"PDF output requires reportlab. Install it with:\n"
+            f"  pip install reportlab\n\n{exc}",
+            err=True,
+        )
+        sys.exit(1)
+    except (IndexError, ValueError) as exc:
+        click.echo(f"Render error: {exc}", err=True)
+        sys.exit(1)
+
+    try:
+        with open(output_path, "wb") as fh:
+            fh.write(pdf_bytes)
+    except OSError as exc:
+        click.echo(f"Cannot write output file {output_path!r}: {exc}", err=True)
+        sys.exit(1)
+
+    canvas = doc.canvases[canvas_index]  # type: ignore[union-attr]
+    click.echo(
+        f"Rendered PDF ({canvas.width:g}×{canvas.height:g} {canvas.units}) → {output_path}"
+    )
 
 
 # ---------------------------------------------------------------------------
