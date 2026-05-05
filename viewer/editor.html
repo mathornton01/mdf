@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MDF Editor — Morphous Document Format</title>
+  <style>
+    :root {
+      --bg:         #0f1117;
+      --surface:    #181b24;
+      --surface-2:  #1e2130;
+      --surface-3:  #252a3a;
+      --border:     #2a2e3e;
+      --border-2:   #353a52;
+      --text:       #e8eaf0;
+      --text-muted: #8890a8;
+      --text-dim:   #555d78;
+      --accent:     #6c7dff;
+      --accent-2:   #8b6fff;
+      --accent-glow:rgba(108,125,255,0.15);
+      --success:    #3dd68c;
+      --warn:       #f0a050;
+      --danger:     #ff5e6d;
+      --radius:     8px;
+      --radius-lg:  12px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.5);
+      --shadow-lg:  0 8px 48px rgba(0,0,0,0.7);
+      --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+      --transition: 0.15s cubic-bezier(0.4,0,0.2,1);
+      --header-h:   48px;
+      --tool-w:     56px;
+      --panel-w:    272px;
+      --status-h:   26px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--font-sans); background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.5; }
+
+    /* ===== LAYOUT ===== */
+    #app {
+      display: grid;
+      grid-template-rows: var(--header-h) 1fr var(--status-h);
+      grid-template-columns: var(--tool-w) 1fr var(--panel-w);
+      height: 100vh;
+    }
+    #header {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+    }
+    #tool-strip {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0; gap: 2px;
+      overflow-y: auto; overflow-x: hidden;
+    }
+    #canvas-area {
+      background: var(--bg);
+      background-image: radial-gradient(circle, rgba(108,125,255,0.06) 1px, transparent 1px);
+      background-size: 20px 20px;
+      overflow: auto;
+      position: relative;
+      display: flex; align-items: flex-start; justify-content: flex-start;
+    }
+    #right-panel {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    #status-bar {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 12px;
+      font-size: 11px; color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* ===== HEADER ===== */
+    .logo-mark {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .logo-text { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; }
+    .header-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .header-spacer { flex: 1; }
+    .hbtn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text); font-size: 12px; font-weight: 500;
+      cursor: pointer; font-family: var(--font-sans);
+      transition: background var(--transition), border-color var(--transition);
+      white-space: nowrap;
+    }
+    .hbtn:hover { background: var(--surface-3); border-color: var(--border-2); }
+    .hbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .hbtn.primary:hover { opacity: 0.88; }
+    .hbtn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+    /* ===== TOOL STRIP ===== */
+    .tool-btn {
+      width: 44px; height: 44px; border-radius: var(--radius);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; font-size: 10px; font-family: var(--font-sans);
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+      position: relative;
+    }
+    .tool-btn svg { flex-shrink: 0; }
+    .tool-btn:hover { background: var(--surface-2); color: var(--text); }
+    .tool-btn.active {
+      background: var(--accent-glow);
+      border-color: rgba(108,125,255,0.4);
+      color: var(--accent);
+    }
+    .tool-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ===== RIGHT PANEL ===== */
+    .panel-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+    }
+    .panel-tab {
+      flex: 1; padding: 9px 0; text-align: center;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-muted); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .panel-tab.active { color: var(--accent); border-color: var(--accent); }
+    .panel-body {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+    .panel-section { display: flex; flex-direction: column; gap: 6px; }
+    .panel-section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-dim); padding-bottom: 2px;
+    }
+    .field-row { display: flex; align-items: center; gap: 6px; }
+    .field-label { font-size: 11px; color: var(--text-muted); min-width: 36px; flex-shrink: 0; }
+    .field-label-wide { font-size: 11px; color: var(--text-muted); min-width: 54px; flex-shrink: 0; }
+    input[type=text], input[type=number], select, textarea {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 5px;
+      font-family: var(--font-sans); font-size: 12px;
+      padding: 4px 7px; outline: none;
+      transition: border-color var(--transition);
+    }
+    input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    input[type=number] { width: 60px; }
+    input[type=text] { flex: 1; }
+    select { flex: 1; cursor: pointer; }
+    textarea {
+      width: 100%; resize: vertical; min-height: 60px;
+      font-family: var(--font-mono); font-size: 11px;
+    }
+    input[type=range] {
+      flex: 1; accent-color: var(--accent); cursor: pointer; height: 4px;
+    }
+    input[type=color] {
+      width: 32px; height: 28px; border: 1px solid var(--border);
+      border-radius: 5px; cursor: pointer; padding: 2px;
+      background: var(--surface-2);
+    }
+    .range-val { font-size: 11px; color: var(--text-muted); min-width: 32px; text-align: right; font-family: var(--font-mono); }
+    .checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+    .checkbox-row input { accent-color: var(--accent); cursor: pointer; }
+
+    /* ===== SHAPE PRESETS GRID ===== */
+    .presets-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+    }
+    .preset-tile {
+      aspect-ratio: 1; border-radius: 6px;
+      background: var(--surface-2); border: 1.5px solid var(--border);
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      transition: border-color var(--transition), background var(--transition);
+      padding: 4px;
+    }
+    .preset-tile:hover { border-color: var(--border-2); background: var(--surface-3); }
+    .preset-tile.active { border-color: var(--accent); background: var(--accent-glow); }
+    .preset-tile svg { width: 28px; height: 28px; }
+    .preset-tile-label { font-size: 9px; color: var(--text-muted); text-align: center; line-height: 1.2; }
+
+    /* ===== CANVAS EDITOR ===== */
+    #editor-svg-wrap {
+      position: relative;
+      display: inline-block;
+      margin: 24px;
+    }
+    #editor-svg {
+      display: block;
+      cursor: crosshair;
+    }
+    #editor-svg.tool-select { cursor: default; }
+    #editor-svg.tool-paper { cursor: crosshair; }
+
+    /* ===== ZOOM PILL ===== */
+    #zoom-pill {
+      position: absolute; bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 50px; padding: 4px 8px;
+      box-shadow: var(--shadow); z-index: 10; pointer-events: all;
+    }
+    .zpbtn {
+      width: 24px; height: 24px; border: none; background: transparent;
+      color: var(--text); border-radius: 50%; cursor: pointer;
+      font-size: 15px; display: flex; align-items: center; justify-content: center;
+      transition: background var(--transition); font-family: var(--font-sans);
+    }
+    .zpbtn:hover { background: var(--surface-2); }
+    #zoom-label { font-size: 11px; font-weight: 600; color: var(--text-muted); min-width: 40px; text-align: center; font-family: var(--font-mono); }
+
+    /* ===== EMPTY SHAPE PANEL ===== */
+    .no-selection {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      color: var(--text-dim); font-size: 12px; text-align: center; padding: 20px;
+    }
+
+    /* ===== DIVIDER ===== */
+    .panel-divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+    /* ===== NOTIFICATION ===== */
+    #notif {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px 16px;
+      font-size: 12px; color: var(--text);
+      box-shadow: var(--shadow); z-index: 999;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #notif.show { opacity: 1; }
+
+    /* ===== MODAL ===== */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px;
+      min-width: 320px; max-width: 480px; width: 90%;
+      box-shadow: var(--shadow-lg);
+    }
+    #modal-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    #modal-box p { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo-mark">
+      <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+        <path d="M9 1L16.5 5.5V12.5L9 17L1.5 12.5V5.5L9 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="9" cy="9" r="2.5" fill="white"/>
+      </svg>
+    </div>
+    <span class="logo-text">MDF Editor</span>
+    <div class="header-sep"></div>
+    <button class="hbtn" onclick="newDocument()" title="New document">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M7.5 1H3a1 1 0 00-1 1v9a1 1 0 001 1h7a1 1 0 001-1V5.5M7.5 1L11 4.5M7.5 1v3.5H11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      New
+    </button>
+    <button class="hbtn" onclick="document.getElementById('file-input-el').click()" title="Open .mdf file">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 4.5V10a1 1 0 001 1h7a1 1 0 001-1V5.5a1 1 0 00-1-1H6.5L5.5 3H3a1 1 0 00-1 1z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Open
+    </button>
+    <input type="file" id="file-input-el" accept=".mdf,.xml" style="display:none">
+    <button class="hbtn primary" onclick="saveMDF()" title="Save as .mdf (Cmd+S)">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 2.5A.5.5 0 012.5 2h6.793L11 3.707V10.5a.5.5 0 01-.5.5h-8a.5.5 0 01-.5-.5v-8zM4.5 11V7.5h4V11M8.5 2v3H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Save .mdf
+    </button>
+    <button class="hbtn" onclick="exportPDF()" title="Export PDF">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M7.5 1H3a1 1 0 00-1 1v9a1 1 0 001 1h7a1 1 0 001-1V5.5M7.5 1L11 4.5M7.5 1v3.5H11M4 8h5M4 6h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Export PDF
+    </button>
+    <div class="header-spacer"></div>
+    <button class="hbtn" onclick="window.open('index.html','_blank')" title="Open in Viewer">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2.5h4v4M10.5 2.5L5.5 7.5M2 3.5v7h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      View →
+    </button>
+  </div>
+
+  <!-- TOOL STRIP -->
+  <div id="tool-strip">
+    <button class="tool-btn active" id="tool-select" onclick="setTool('select')" title="Select (V)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2l10 5.5-5.5 1.5L5 14z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      <span>V</span>
+    </button>
+    <button class="tool-btn" id="tool-paper" onclick="setTool('paper')" title="Paper Shape (P)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.5 1.5"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
+      <span>P</span>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" id="tool-rect" onclick="setTool('rect')" title="Rectangle (R)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="4" width="11" height="8" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+      <span>R</span>
+    </button>
+    <button class="tool-btn" id="tool-circle" onclick="setTool('circle')" title="Circle (C)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      <span>C</span>
+    </button>
+    <button class="tool-btn" id="tool-ellipse" onclick="setTool('ellipse')" title="Ellipse (E)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" stroke-width="1.3"/></svg>
+      <span>E</span>
+    </button>
+    <button class="tool-btn" id="tool-line" onclick="setTool('line')" title="Line (L)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 13L13.5 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>L</span>
+    </button>
+    <button class="tool-btn" id="tool-text" onclick="setTool('text')" title="Text (T)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M8 4v8M5.5 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span>T</span>
+    </button>
+    <button class="tool-btn" id="tool-path" onclick="setTool('path')" title="Polygon / Path (A)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l2.5 4h4L11 9l1.5 4L8 11l-4.5 2L5 9 1.5 6h4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      <span>A</span>
+    </button>
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div id="canvas-area">
+    <div id="editor-svg-wrap">
+      <svg id="editor-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div id="zoom-pill">
+      <button class="zpbtn" id="zoom-out-btn" title="Zoom out (-)">−</button>
+      <span id="zoom-label">100%</span>
+      <button class="zpbtn" id="zoom-in-btn" title="Zoom in (+)">+</button>
+      <button class="zpbtn" id="zoom-fit-btn" title="Fit (0)" style="font-size:11px">⊡</button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" id="tab-paper" onclick="switchPanelTab('paper')">Paper</div>
+      <div class="panel-tab" id="tab-shape" onclick="switchPanelTab('shape')">Shape</div>
+    </div>
+    <div class="panel-body" id="panel-paper">
+      <!-- Paper panel content injected by JS -->
+    </div>
+    <div class="panel-body" id="panel-shape" style="display:none">
+      <div class="no-selection">No shape selected.<br>Use Select tool to pick a shape.</div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="status-bar">
+    <span id="status-pos">x: 0, y: 0</span>
+    <span id="status-sel">No selection</span>
+    <div style="flex:1"></div>
+    <span id="status-zoom">100%</span>
+    <span id="status-shapes">0 shapes</span>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-msg"></p>
+    <div class="modal-actions">
+      <button class="hbtn" id="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="hbtn primary" id="modal-ok" onclick="confirmModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div id="notif"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+//  PATH GENERATORS
+// ============================================================
+function starPath(W, H, n, ir) {
+  const cx = W/2, cy = H/2;
+  const ro = Math.min(W, H)/2 * 0.95;
+  const ri = ro * ir;
+  let d = '';
+  for (let i = 0; i < n*2; i++) {
+    const a = (i * Math.PI / n) - Math.PI/2;
+    const r = i%2 === 0 ? ro : ri;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    d += (i===0 ? 'M ' : 'L ') + x.toFixed(3) + ',' + y.toFixed(3) + ' ';
+  }
+  return d + 'Z';
+}
+
+function polygonPath(W, H, n) {
+  const cx = W/2, cy = H/2;
+  const r = Math.min(W, H)/2 * 0.95;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = (i * 2 * Math.PI / n) - Math.PI/2;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    d += (i===0 ? 'M ' : 'L ') + x.toFixed(3) + ',' + y.toFixed(3) + ' ';
+  }
+  return d + 'Z';
+}
+
+function heartPath(W, H) {
+  const s = Math.min(W, H);
+  const cx = W/2, cy = H/2;
+  const k = s/100;
+  return `M ${cx},${cy+38*k} C ${cx-50*k},${cy+15*k} ${cx-55*k},${cy-22*k} ${cx-25*k},${cy-32*k} C ${cx-10*k},${cy-38*k} ${cx},${cy-22*k} ${cx},${cy-22*k} C ${cx},${cy-22*k} ${cx+10*k},${cy-38*k} ${cx+25*k},${cy-32*k} C ${cx+55*k},${cy-22*k} ${cx+50*k},${cy+15*k} ${cx},${cy+38*k} Z`;
+}
+
+const presets = {
+  rectangle: (W, H) => `M 0,0 L ${W},0 L ${W},${H} L 0,${H} Z`,
+  'rounded-rect': (W, H, r) => {
+    r = r !== undefined ? r : Math.min(W,H)*0.1;
+    return `M ${r},0 L ${W-r},0 A ${r},${r} 0 0,1 ${W},${r} L ${W},${H-r} A ${r},${r} 0 0,1 ${W-r},${H} L ${r},${H} A ${r},${r} 0 0,1 0,${H-r} L 0,${r} A ${r},${r} 0 0,1 ${r},0 Z`;
+  },
+  circle: (W, H) => {
+    const cx = W/2, cy = H/2, r = Math.min(W,H)/2;
+    return `M ${cx},${cy-r} A ${r},${r} 0 1,1 ${cx-0.001},${cy-r} Z`;
+  },
+  ellipse: (W, H) => {
+    const cx = W/2, cy = H/2, rx = W/2, ry = H/2;
+    return `M ${cx},0 A ${rx},${ry} 0 0,1 ${W},${cy} A ${rx},${ry} 0 0,1 ${cx},${H} A ${rx},${ry} 0 0,1 0,${cy} A ${rx},${ry} 0 0,1 ${cx},0 Z`;
+  },
+  diamond: (W, H) => `M ${W/2},0 L ${W},${H/2} L ${W/2},${H} L 0,${H/2} Z`,
+  pentagon: (W, H) => polygonPath(W, H, 5),
+  hexagon:  (W, H) => polygonPath(W, H, 6),
+  heptagon: (W, H) => polygonPath(W, H, 7),
+  octagon:  (W, H) => polygonPath(W, H, 8),
+  'star-4': (W, H, ir) => starPath(W, H, 4, ir !== undefined ? ir : 0.4),
+  'star-5': (W, H, ir) => starPath(W, H, 5, ir !== undefined ? ir : 0.4),
+  'star-6': (W, H, ir) => starPath(W, H, 6, ir !== undefined ? ir : 0.5),
+  'star-8': (W, H, ir) => starPath(W, H, 8, ir !== undefined ? ir : 0.5),
+  heart:    (W, H) => heartPath(W, H),
+  shield:   (W, H) => `M ${W/2},0 L ${W},${H*0.25} L ${W},${H*0.6} Q ${W},${H} ${W/2},${H} Q 0,${H} 0,${H*0.6} L 0,${H*0.25} Z`,
+  arrow:    (W, H) => {
+    const bw = W*0.55, by = H*0.3;
+    return `M 0,${by} L ${bw},${by} L ${bw},0 L ${W},${H/2} L ${bw},${H} L ${bw},${H-by} L 0,${H-by} Z`;
+  },
+  cross: (W, H) => {
+    const t = W*0.3, l = H*0.3;
+    return `M ${t},0 L ${W-t},0 L ${W-t},${l} L ${W},${l} L ${W},${H-l} L ${W-t},${H-l} L ${W-t},${H} L ${t},${H} L ${t},${H-l} L 0,${H-l} L 0,${l} L ${t},${l} Z`;
+  },
+  ticket: (W, H) => {
+    const r = Math.min(W,H)*0.1;
+    return `M 0,0 L ${W},0 L ${W},${H/2-r} A ${r},${r} 0 0,0 ${W},${H/2+r} L ${W},${H} L 0,${H} L 0,${H/2+r} A ${r},${r} 0 0,0 0,${H/2-r} Z`;
+  },
+  'polygon-n': (W, H, n) => polygonPath(W, H, n !== undefined ? n : 6),
+  custom: (W, H) => `M 0,0 L ${W},0 L ${W},${H} L 0,${H} Z`,
+};
+
+// Preset metadata for UI
+const PRESET_DEFS = [
+  { id:'rectangle',   label:'Rect',      hasRadius: false },
+  { id:'rounded-rect',label:'Rounded',   hasRadius: true  },
+  { id:'circle',      label:'Circle',    hasRadius: false },
+  { id:'ellipse',     label:'Ellipse',   hasRadius: false },
+  { id:'diamond',     label:'Diamond',   hasRadius: false },
+  { id:'pentagon',    label:'Pentagon',  hasRadius: false },
+  { id:'hexagon',     label:'Hexagon',   hasRadius: false },
+  { id:'heptagon',    label:'Heptagon',  hasRadius: false },
+  { id:'octagon',     label:'Octagon',   hasRadius: false },
+  { id:'star-4',      label:'Star 4',    hasStar: true    },
+  { id:'star-5',      label:'Star 5',    hasStar: true    },
+  { id:'star-6',      label:'Star 6',    hasStar: true    },
+  { id:'star-8',      label:'Star 8',    hasStar: true    },
+  { id:'heart',       label:'Heart',     hasRadius: false },
+  { id:'shield',      label:'Shield',    hasRadius: false },
+  { id:'arrow',       label:'Arrow',     hasRadius: false },
+  { id:'cross',       label:'Cross',     hasRadius: false },
+  { id:'ticket',      label:'Ticket',    hasRadius: false },
+  { id:'polygon-n',   label:'Poly N',    hasPoly: true    },
+  { id:'custom',      label:'Custom',    isCustom: true   },
+];
+
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  canvas: {
+    width: 210, height: 297, units: 'mm',
+    boundary: null,
+    shapeType: 'rectangle', shapeMeaning: 'page',
+    presetId: 'rectangle',
+    presetRadius: null,
+    presetStarIR: 0.4,
+    presetPolyN: 6,
+    customPath: '',
+  },
+  shapes: [],
+  nextId: 1,
+  selectedId: null,
+  activeTool: 'select',
+  zoom: 1.0,
+  drawStart: null,
+  dragState: null,
+  drawingPath: false,
+  pathPoints: [],
+  activePanel: 'paper',
+  undoStack: [],
+  redoStack: [],
+};
+
+// ============================================================
+//  UNDO / REDO
+// ============================================================
+function pushUndo() {
+  const snapshot = JSON.stringify({ shapes: state.shapes, canvas: state.canvas });
+  state.undoStack.push(snapshot);
+  if (state.undoStack.length > 20) state.undoStack.shift();
+  state.redoStack = [];
+}
+
+function undo() {
+  if (!state.undoStack.length) return;
+  const snap = state.undoStack.pop();
+  state.redoStack.push(JSON.stringify({ shapes: state.shapes, canvas: state.canvas }));
+  const s = JSON.parse(snap);
+  state.shapes = s.shapes;
+  Object.assign(state.canvas, s.canvas);
+  state.selectedId = null;
+  render();
+  updatePaperPanel();
+  updateShapePanel();
+  notify('Undo');
+}
+
+function redo() {
+  if (!state.redoStack.length) return;
+  const snap = state.redoStack.pop();
+  state.undoStack.push(JSON.stringify({ shapes: state.shapes, canvas: state.canvas }));
+  const s = JSON.parse(snap);
+  state.shapes = s.shapes;
+  Object.assign(state.canvas, s.canvas);
+  state.selectedId = null;
+  render();
+  updatePaperPanel();
+  updateShapePanel();
+  notify('Redo');
+}
+
+// ============================================================
+//  COORDINATE HELPERS
+// ============================================================
+function svgPoint(e) {
+  const svg = document.getElementById('editor-svg');
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  const ctm = svg.getScreenCTM().inverse();
+  return pt.matrixTransform(ctm);
+}
+
+function snapToGrid(v, step) {
+  return Math.round(v / step) * step;
+}
+
+// ============================================================
+//  SHAPE HELPERS
+// ============================================================
+function makeShape(type, x, y, w, h) {
+  return {
+    id: 'sh-' + (state.nextId++),
+    type,
+    x, y, w, h,
+    fill: type === 'line' ? 'none' : '#6c7dff',
+    stroke: '#ffffff',
+    strokeWidth: 0.5,
+    opacity: 1.0,
+    text: 'Text',
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#ffffff',
+  };
+}
+
+function getShape(id) {
+  return state.shapes.find(s => s.id === id);
+}
+
+function getSelectedShape() {
+  return state.selectedId ? getShape(state.selectedId) : null;
+}
+
+function deleteSelected() {
+  if (!state.selectedId) return;
+  pushUndo();
+  state.shapes = state.shapes.filter(s => s.id !== state.selectedId);
+  state.selectedId = null;
+  render();
+  updateShapePanel();
+  updateStatus();
+}
+
+// ============================================================
+//  BOUNDARY PATH
+// ============================================================
+function getBoundaryPath() {
+  const c = state.canvas;
+  if (c.presetId === 'custom') {
+    return c.customPath || presets.rectangle(c.width, c.height);
+  }
+  if (c.presetId === 'rounded-rect') {
+    const r = c.presetRadius !== null ? c.presetRadius : Math.min(c.width, c.height)*0.1;
+    return presets['rounded-rect'](c.width, c.height, r);
+  }
+  if (c.presetId === 'star-4' || c.presetId === 'star-5' || c.presetId === 'star-6' || c.presetId === 'star-8') {
+    return presets[c.presetId](c.width, c.height, c.presetStarIR);
+  }
+  if (c.presetId === 'polygon-n') {
+    return polygonPath(c.width, c.height, c.presetPolyN);
+  }
+  const fn = presets[c.presetId];
+  return fn ? fn(c.width, c.height) : presets.rectangle(c.width, c.height);
+}
+
+// ============================================================
+//  SVG RENDERING
+// ============================================================
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs, children) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  for (const c of (children || [])) e.appendChild(c);
+  return e;
+}
+
+function renderShapeSVG(sh) {
+  const fill = sh.fill === 'none' ? 'none' : sh.fill;
+  const stroke = sh.stroke === 'none' ? 'none' : sh.stroke;
+  const baseAttrs = {
+    fill, stroke,
+    'stroke-width': sh.strokeWidth,
+    opacity: sh.opacity,
+    'data-id': sh.id,
+  };
+  let node;
+  switch (sh.type) {
+    case 'rect':
+      node = el('rect', { ...baseAttrs, x: sh.x, y: sh.y, width: Math.abs(sh.w), height: Math.abs(sh.h) });
+      break;
+    case 'circle': {
+      const r = Math.abs(sh.w) / 2;
+      node = el('circle', { ...baseAttrs, cx: sh.x + r, cy: sh.y + r, r });
+      break;
+    }
+    case 'ellipse': {
+      const rx = Math.abs(sh.w) / 2, ry = Math.abs(sh.h) / 2;
+      node = el('ellipse', { ...baseAttrs, cx: sh.x + rx, cy: sh.y + ry, rx, ry });
+      break;
+    }
+    case 'line':
+      node = el('line', { ...baseAttrs, x1: sh.x, y1: sh.y, x2: sh.x + sh.w, y2: sh.y + sh.h, fill: 'none' });
+      break;
+    case 'text': {
+      const g = el('g', { opacity: sh.opacity, 'data-id': sh.id });
+      const t = el('text', {
+        x: sh.x + sh.w/2, y: sh.y + sh.h/2,
+        fill: sh.color || sh.fill,
+        'font-size': sh.fontSize || 12,
+        'text-anchor': sh.textAlign === 'left' ? 'start' : sh.textAlign === 'right' ? 'end' : 'middle',
+        'dominant-baseline': 'central',
+        'font-family': 'Inter, system-ui, sans-serif',
+      });
+      t.textContent = sh.text || '';
+      // Background rect for text
+      const bg = el('rect', {
+        x: sh.x, y: sh.y, width: Math.abs(sh.w), height: Math.abs(sh.h),
+        fill: sh.fill === 'none' ? 'none' : sh.fill,
+        stroke, 'stroke-width': sh.strokeWidth,
+      });
+      g.appendChild(bg);
+      g.appendChild(t);
+      return g;
+    }
+    case 'path': {
+      const pts = sh.pathPoints || [];
+      if (pts.length < 2) {
+        node = el('circle', { ...baseAttrs, cx: sh.x, cy: sh.y, r: 2 });
+      } else {
+        const d = 'M ' + pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' L ') + ' Z';
+        node = el('path', { ...baseAttrs, d });
+      }
+      break;
+    }
+    default:
+      node = el('rect', { ...baseAttrs, x: sh.x, y: sh.y, width: 10, height: 10 });
+  }
+  return node;
+}
+
+function shapeBBox(sh) {
+  let x = sh.x, y = sh.y, w = sh.w, h = sh.h;
+  if (sh.type === 'path' && sh.pathPoints && sh.pathPoints.length) {
+    const xs = sh.pathPoints.map(p => p.x);
+    const ys = sh.pathPoints.map(p => p.y);
+    x = Math.min(...xs); y = Math.min(...ys);
+    w = Math.max(...xs) - x;
+    h = Math.max(...ys) - y;
+  }
+  if (w < 0) { x += w; w = -w; }
+  if (h < 0) { y += h; h = -h; }
+  return { x, y, w, h };
+}
+
+function renderHandles(sh, svg) {
+  if (!sh) return;
+  const bb = shapeBBox(sh);
+  const { x, y, w, h } = bb;
+  const hs = 5 / state.zoom; // handle size in canvas coords
+  const positions = [
+    [x,   y],   [x+w/2, y],   [x+w, y],
+    [x,   y+h/2],             [x+w, y+h/2],
+    [x,   y+h], [x+w/2, y+h], [x+w, y+h],
+  ];
+  const cursors = ['nw-resize','n-resize','ne-resize','w-resize','e-resize','sw-resize','s-resize','se-resize'];
+  const selGroup = document.getElementById('sel-group');
+  // Outline rect
+  const outline = el('rect', {
+    x: x - hs*0.3, y: y - hs*0.3,
+    width: w + hs*0.6, height: h + hs*0.6,
+    fill: 'none', stroke: '#6c7dff',
+    'stroke-width': 1/state.zoom,
+    'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    'pointer-events': 'none',
+  });
+  selGroup.appendChild(outline);
+
+  positions.forEach((pos, i) => {
+    const hEl = el('rect', {
+      x: pos[0] - hs/2, y: pos[1] - hs/2,
+      width: hs, height: hs,
+      fill: '#fff', stroke: '#6c7dff',
+      'stroke-width': 1/state.zoom,
+      rx: 1/state.zoom,
+      class: 'sel-handle',
+      'data-handle': i,
+      style: `cursor:${cursors[i]}`,
+    });
+    hEl.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      startResize(i, e, sh);
+    });
+    selGroup.appendChild(hEl);
+  });
+}
+
+function render() {
+  const svg = document.getElementById('editor-svg');
+  const { width, height } = state.canvas;
+  const boundary = getBoundaryPath();
+
+  svg.setAttribute('width', width * state.zoom);
+  svg.setAttribute('height', height * state.zoom);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.innerHTML = '';
+
+  // Defs
+  const defs = el('defs');
+  // Drop shadow filter
+  const filt = el('filter', { id: 'paper-shadow', x: '-10%', y: '-10%', width: '120%', height: '120%' });
+  filt.innerHTML = '<feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="rgba(0,0,0,0.45)"/>';
+  // Clip path
+  const clip = el('clipPath', { id: 'boundary-clip' });
+  clip.appendChild(el('path', { d: boundary }));
+  defs.appendChild(filt);
+  defs.appendChild(clip);
+  svg.appendChild(defs);
+
+  // Grid behind paper
+  const gridGroup = el('g', { id: 'grid-group', 'pointer-events': 'none' });
+  const gridSize = 10;
+  for (let x = 0; x <= width; x += gridSize) {
+    gridGroup.appendChild(el('line', {
+      x1: x, y1: 0, x2: x, y2: height,
+      stroke: 'rgba(108,125,255,0.04)', 'stroke-width': 0.3,
+    }));
+  }
+  for (let y = 0; y <= height; y += gridSize) {
+    gridGroup.appendChild(el('line', {
+      x1: 0, y1: y, x2: width, y2: y,
+      stroke: 'rgba(108,125,255,0.04)', 'stroke-width': 0.3,
+    }));
+  }
+  svg.appendChild(gridGroup);
+
+  // Paper fill
+  svg.appendChild(el('path', {
+    d: boundary, fill: '#ffffff',
+    filter: 'url(#paper-shadow)',
+    'pointer-events': 'none',
+  }));
+
+  // Content group clipped
+  const contentG = el('g', { id: 'content-group', 'clip-path': 'url(#boundary-clip)' });
+  for (const sh of state.shapes) {
+    const shEl = renderShapeSVG(sh);
+    shEl.addEventListener('mousedown', (e) => {
+      if (state.activeTool === 'select') {
+        e.stopPropagation();
+        selectShape(sh.id);
+        startMove(e, sh);
+      }
+    });
+    contentG.appendChild(shEl);
+  }
+  svg.appendChild(contentG);
+
+  // Paper outline
+  svg.appendChild(el('path', {
+    d: boundary, fill: 'none',
+    stroke: '#c0c8e8', 'stroke-width': 0.3,
+    'pointer-events': 'none',
+  }));
+
+  // Selection handles
+  const selGroup = el('g', { id: 'sel-group', 'pointer-events': 'all' });
+  svg.appendChild(selGroup);
+  const sel = getSelectedShape();
+  if (sel) renderHandles(sel, svg);
+
+  // In-progress drawing
+  const drawGroup = el('g', { id: 'draw-group', 'pointer-events': 'none' });
+  svg.appendChild(drawGroup);
+
+  updateStatus();
+}
+
+// ============================================================
+//  TOOL MANAGEMENT
+// ============================================================
+function setTool(name) {
+  // Cancel any in-progress path
+  if (state.drawingPath) cancelPathDraw();
+  state.activeTool = name;
+  state.drawStart = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool-' + name);
+  if (btn) btn.classList.add('active');
+  const svg = document.getElementById('editor-svg');
+  svg.className = '';
+  svg.classList.add('tool-' + name);
+  if (name !== 'select') state.selectedId = null;
+  render();
+  updateShapePanel();
+}
+
+// ============================================================
+//  MOUSE EVENTS
+// ============================================================
+const svg = document.getElementById('editor-svg');
+
+svg.addEventListener('mousedown', onSVGMousedown);
+svg.addEventListener('mousemove', onSVGMousemove);
+svg.addEventListener('mouseup', onSVGMouseup);
+window.addEventListener('mouseup', onWindowMouseup);
+svg.addEventListener('dblclick', onSVGDblclick);
+
+function onSVGMousedown(e) {
+  if (e.button !== 0) return;
+  const pt = svgPoint(e);
+  const tool = state.activeTool;
+
+  if (tool === 'select') {
+    // Deselect if clicking empty
+    state.selectedId = null;
+    render();
+    updateShapePanel();
+    return;
+  }
+
+  if (tool === 'paper') return; // handled by panel
+
+  if (tool === 'path') {
+    if (!state.drawingPath) {
+      state.drawingPath = true;
+      state.pathPoints = [{ x: pt.x, y: pt.y }];
+    } else {
+      state.pathPoints.push({ x: pt.x, y: pt.y });
+    }
+    renderInProgressPath();
+    return;
+  }
+
+  state.drawStart = pt;
+}
+
+function onSVGMousemove(e) {
+  const pt = svgPoint(e);
+  updateStatusPos(pt.x, pt.y);
+
+  if (state.dragState) {
+    handleDrag(e, pt);
+    return;
+  }
+
+  if (state.drawStart && state.activeTool !== 'select' && state.activeTool !== 'path' && state.activeTool !== 'paper') {
+    renderRubberband(state.drawStart, pt);
+  }
+
+  if (state.drawingPath) {
+    renderInProgressPath(pt);
+  }
+}
+
+function onSVGMouseup(e) {
+  if (e.button !== 0) return;
+  const pt = svgPoint(e);
+
+  if (state.dragState) {
+    endDrag();
+    return;
+  }
+
+  if (!state.drawStart) return;
+  const start = state.drawStart;
+  state.drawStart = null;
+
+  const tool = state.activeTool;
+  if (tool === 'select' || tool === 'paper' || tool === 'path') return;
+
+  const dx = pt.x - start.x;
+  const dy = pt.y - start.y;
+  const minSize = 3;
+
+  if (Math.abs(dx) < minSize && Math.abs(dy) < minSize) return;
+
+  pushUndo();
+  const x = Math.min(start.x, pt.x);
+  const y = Math.min(start.y, pt.y);
+  const w = Math.abs(dx);
+  const h = Math.abs(dy);
+
+  let sh;
+  if (tool === 'rect') sh = makeShape('rect', x, y, w, h);
+  else if (tool === 'circle') sh = makeShape('circle', x, y, Math.min(w,h), Math.min(w,h));
+  else if (tool === 'ellipse') sh = makeShape('ellipse', x, y, w, h);
+  else if (tool === 'line') sh = makeShape('line', start.x, start.y, dx, dy);
+  else if (tool === 'text') {
+    sh = makeShape('text', x, y, Math.max(w, 40), Math.max(h, 20));
+    sh.fill = 'none'; sh.stroke = 'none';
+    sh.color = '#ffffff';
+  }
+
+  if (sh) {
+    state.shapes.push(sh);
+    state.selectedId = sh.id;
+    render();
+    switchPanelTab('shape');
+    updateShapePanel();
+  }
+
+  // Clear rubberband
+  const dg = document.getElementById('draw-group');
+  if (dg) dg.innerHTML = '';
+}
+
+function onWindowMouseup() {
+  if (state.dragState) endDrag();
+}
+
+function onSVGDblclick(e) {
+  if (state.drawingPath && state.pathPoints.length >= 2) {
+    finishPathDraw();
+  }
+}
+
+// ============================================================
+//  RUBBERBAND & IN-PROGRESS DRAWING
+// ============================================================
+function renderRubberband(start, cur) {
+  const dg = document.getElementById('draw-group');
+  if (!dg) return;
+  dg.innerHTML = '';
+  const x = Math.min(start.x, cur.x), y = Math.min(start.y, cur.y);
+  const w = Math.abs(cur.x - start.x), h = Math.abs(cur.y - start.y);
+  const sw = 1/state.zoom;
+
+  const tool = state.activeTool;
+  if (tool === 'rect' || tool === 'text') {
+    dg.appendChild(el('rect', {
+      x, y, width: w, height: h,
+      fill: 'rgba(108,125,255,0.12)', stroke: '#6c7dff', 'stroke-width': sw,
+      'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    }));
+  } else if (tool === 'circle') {
+    const r = Math.min(w,h)/2;
+    dg.appendChild(el('circle', {
+      cx: start.x + (cur.x > start.x ? r : -r),
+      cy: start.y + (cur.y > start.y ? r : -r),
+      r,
+      fill: 'rgba(108,125,255,0.12)', stroke: '#6c7dff', 'stroke-width': sw,
+      'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    }));
+  } else if (tool === 'ellipse') {
+    dg.appendChild(el('ellipse', {
+      cx: x + w/2, cy: y + h/2, rx: w/2, ry: h/2,
+      fill: 'rgba(108,125,255,0.12)', stroke: '#6c7dff', 'stroke-width': sw,
+      'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    }));
+  } else if (tool === 'line') {
+    dg.appendChild(el('line', {
+      x1: start.x, y1: start.y, x2: cur.x, y2: cur.y,
+      stroke: '#6c7dff', 'stroke-width': sw * 1.5,
+      'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    }));
+  }
+}
+
+function renderInProgressPath(cursor) {
+  const dg = document.getElementById('draw-group');
+  if (!dg) return;
+  dg.innerHTML = '';
+  const pts = state.pathPoints;
+  if (!pts.length) return;
+  const sw = 1/state.zoom;
+
+  // Draw completed segments
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) d += ` L ${pts[i].x},${pts[i].y}`;
+
+  dg.appendChild(el('path', {
+    d, fill: 'none', stroke: '#6c7dff', 'stroke-width': sw,
+    'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+  }));
+
+  if (cursor) {
+    const last = pts[pts.length-1];
+    dg.appendChild(el('line', {
+      x1: last.x, y1: last.y, x2: cursor.x, y2: cursor.y,
+      stroke: '#6c7dff', 'stroke-width': sw * 0.7, opacity: 0.5,
+    }));
+  }
+
+  // Draw vertex dots
+  for (const p of pts) {
+    dg.appendChild(el('circle', {
+      cx: p.x, cy: p.y, r: 3/state.zoom,
+      fill: '#fff', stroke: '#6c7dff', 'stroke-width': sw,
+    }));
+  }
+}
+
+function finishPathDraw() {
+  const pts = state.pathPoints;
+  pushUndo();
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const sh = makeShape('path', x, y, w, h);
+  sh.pathPoints = pts.slice();
+  state.shapes.push(sh);
+  state.selectedId = sh.id;
+  cancelPathDraw();
+  render();
+  switchPanelTab('shape');
+  updateShapePanel();
+}
+
+function cancelPathDraw() {
+  state.drawingPath = false;
+  state.pathPoints = [];
+  const dg = document.getElementById('draw-group');
+  if (dg) dg.innerHTML = '';
+}
+
+// ============================================================
+//  SELECTION
+// ============================================================
+function selectShape(id) {
+  state.selectedId = id;
+  render();
+  switchPanelTab('shape');
+  updateShapePanel();
+  updateStatus();
+}
+
+// ============================================================
+//  DRAG: MOVE
+// ============================================================
+function startMove(e, sh) {
+  if (state.activeTool !== 'select') return;
+  e.preventDefault();
+  pushUndo();
+  const pt = svgPoint(e);
+  state.dragState = {
+    type: 'move',
+    origShape: { ...sh, pathPoints: sh.pathPoints ? sh.pathPoints.map(p => ({ ...p })) : undefined },
+    origMouse: pt,
+    shapeId: sh.id,
+  };
+}
+
+function startResize(handleIdx, e, sh) {
+  e.preventDefault();
+  pushUndo();
+  const pt = svgPoint(e);
+  state.dragState = {
+    type: 'resize',
+    handle: handleIdx,
+    origShape: { ...sh, pathPoints: sh.pathPoints ? sh.pathPoints.map(p => ({ ...p })) : undefined },
+    origMouse: pt,
+    shapeId: sh.id,
+  };
+}
+
+function handleDrag(e, pt) {
+  const ds = state.dragState;
+  if (!ds) return;
+  const sh = getShape(ds.shapeId);
+  if (!sh) return;
+  const dx = pt.x - ds.origMouse.x;
+  const dy = pt.y - ds.origMouse.y;
+  const orig = ds.origShape;
+
+  if (ds.type === 'move') {
+    sh.x = orig.x + dx;
+    sh.y = orig.y + dy;
+    if (sh.pathPoints && orig.pathPoints) {
+      sh.pathPoints = orig.pathPoints.map(p => ({ x: p.x + dx, y: p.y + dy }));
+    }
+  } else if (ds.type === 'resize') {
+    const h = ds.handle;
+    let nx = orig.x, ny = orig.y, nw = orig.w, nh = orig.h;
+    // 0=TL 1=TM 2=TR 3=ML 4=MR 5=BL 6=BM 7=BR
+    if (h === 0) { nx = orig.x+dx; ny = orig.y+dy; nw = orig.w-dx; nh = orig.h-dy; }
+    else if (h === 1) { ny = orig.y+dy; nh = orig.h-dy; }
+    else if (h === 2) { ny = orig.y+dy; nw = orig.w+dx; nh = orig.h-dy; }
+    else if (h === 3) { nx = orig.x+dx; nw = orig.w-dx; }
+    else if (h === 4) { nw = orig.w+dx; }
+    else if (h === 5) { nx = orig.x+dx; nw = orig.w-dx; nh = orig.h+dy; }
+    else if (h === 6) { nh = orig.h+dy; }
+    else if (h === 7) { nw = orig.w+dx; nh = orig.h+dy; }
+    sh.x = nx; sh.y = ny;
+    sh.w = Math.max(1, nw);
+    sh.h = Math.max(1, nh);
+  }
+
+  render();
+  updateShapePanel();
+}
+
+function endDrag() {
+  state.dragState = null;
+}
+
+// ============================================================
+//  STATUS BAR
+// ============================================================
+function updateStatusPos(x, y) {
+  document.getElementById('status-pos').textContent =
+    `x: ${x.toFixed(1)}, y: ${y.toFixed(1)} ${state.canvas.units}`;
+}
+
+function updateStatus() {
+  const sel = state.selectedId ? '1 shape selected' : 'No selection';
+  document.getElementById('status-sel').textContent = sel;
+  document.getElementById('status-zoom').textContent = Math.round(state.zoom * 100) + '%';
+  document.getElementById('status-shapes').textContent = state.shapes.length + ' shape' + (state.shapes.length !== 1 ? 's' : '');
+}
+
+// ============================================================
+//  ZOOM
+// ============================================================
+function setZoom(z) {
+  state.zoom = Math.max(0.05, Math.min(8, z));
+  document.getElementById('zoom-label').textContent = Math.round(state.zoom * 100) + '%';
+  render();
+  updateStatus();
+}
+
+function fitZoom() {
+  const area = document.getElementById('canvas-area');
+  const pad = 80;
+  const scaleW = (area.clientWidth - pad) / state.canvas.width;
+  const scaleH = (area.clientHeight - pad) / state.canvas.height;
+  setZoom(Math.min(scaleW, scaleH, 3));
+}
+
+document.getElementById('zoom-in-btn').addEventListener('click', () => setZoom(state.zoom * 1.25));
+document.getElementById('zoom-out-btn').addEventListener('click', () => setZoom(state.zoom / 1.25));
+document.getElementById('zoom-fit-btn').addEventListener('click', fitZoom);
+
+document.getElementById('canvas-area').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  setZoom(state.zoom * (e.deltaY < 0 ? 1.1 : 0.9));
+}, { passive: false });
+
+// ============================================================
+//  PANEL TABS
+// ============================================================
+function switchPanelTab(name) {
+  state.activePanel = name;
+  document.getElementById('panel-paper').style.display = name === 'paper' ? '' : 'none';
+  document.getElementById('panel-shape').style.display = name === 'shape' ? '' : 'none';
+  document.getElementById('tab-paper').classList.toggle('active', name === 'paper');
+  document.getElementById('tab-shape').classList.toggle('active', name === 'shape');
+}
+
+// ============================================================
+//  PAPER PANEL
+// ============================================================
+function buildPresetSVG(id, W, H) {
+  const sw = 28, sh = 28;
+  const scaleX = sw / W, scaleY = sh / H;
+  const scale = Math.min(scaleX, scaleY) * 0.85;
+  const ox = (sw - W*scale)/2, oy = (sh - H*scale)/2;
+
+  let d;
+  try {
+    if (id === 'polygon-n') d = polygonPath(W, H, 6);
+    else if (id === 'custom') d = presets.rectangle(W, H);
+    else if (id === 'star-4') d = starPath(W, H, 4, 0.4);
+    else if (id === 'star-5') d = starPath(W, H, 5, 0.4);
+    else if (id === 'star-6') d = starPath(W, H, 6, 0.5);
+    else if (id === 'star-8') d = starPath(W, H, 8, 0.5);
+    else if (id === 'rounded-rect') d = presets['rounded-rect'](W, H);
+    else d = presets[id] ? presets[id](W, H) : presets.rectangle(W, H);
+  } catch(ex) { d = presets.rectangle(W, H); }
+
+  return `<svg width="${sw}" height="${sh}" viewBox="${-ox/scale} ${-oy/scale} ${sw/scale} ${sh/scale}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${d}" fill="rgba(108,125,255,0.18)" stroke="#6c7dff" stroke-width="${0.8/scale}"/>
+  </svg>`;
+}
+
+function updatePaperPanel() {
+  const panel = document.getElementById('panel-paper');
+  const c = state.canvas;
+  panel.innerHTML = '';
+
+  // Dimensions section
+  const dimSec = makePanelSection('Dimensions');
+  dimSec.innerHTML += `
+    <div class="field-row">
+      <span class="field-label">W</span>
+      <input type="number" id="pp-width" value="${c.width}" min="1" style="width:70px">
+      <span class="field-label">H</span>
+      <input type="number" id="pp-height" value="${c.height}" min="1" style="width:70px">
+    </div>
+    <div class="field-row">
+      <span class="field-label">Units</span>
+      <select id="pp-units">
+        ${['mm','cm','in','px','pt'].map(u => `<option value="${u}" ${c.units===u?'selected':''}>${u}</option>`).join('')}
+      </select>
+    </div>
+  `;
+  panel.appendChild(dimSec);
+
+  // Semantics
+  const semSec = makePanelSection('Semantics');
+  semSec.innerHTML += `
+    <div class="field-row">
+      <span class="field-label-wide">Shape type</span>
+      <input type="text" id="pp-shapetype" value="${c.shapeType}" placeholder="e.g. circle">
+    </div>
+    <div class="field-row">
+      <span class="field-label-wide">Meaning</span>
+      <input type="text" id="pp-meaning" value="${c.shapeMeaning}" placeholder="e.g. page">
+    </div>
+  `;
+  panel.appendChild(semSec);
+
+  // Shape presets
+  const presetSec = makePanelSection('Paper Shape');
+  const grid = document.createElement('div');
+  grid.className = 'presets-grid';
+  for (const pd of PRESET_DEFS) {
+    const tile = document.createElement('div');
+    tile.className = 'preset-tile' + (c.presetId === pd.id ? ' active' : '');
+    tile.innerHTML = buildPresetSVG(pd.id, c.width, c.height) +
+      `<span class="preset-tile-label">${pd.label}</span>`;
+    tile.addEventListener('click', () => applyPreset(pd.id));
+    grid.appendChild(tile);
+  }
+  presetSec.appendChild(grid);
+  panel.appendChild(presetSec);
+
+  // Preset-specific sliders
+  const activePD = PRESET_DEFS.find(p => p.id === c.presetId);
+  if (activePD) {
+    if (activePD.hasRadius) {
+      const r = c.presetRadius !== null ? c.presetRadius : Math.min(c.width, c.height)*0.1;
+      const sliderSec = makePanelSection('Corner Radius');
+      sliderSec.innerHTML += `
+        <div class="field-row">
+          <input type="range" id="pp-radius" min="0" max="${Math.min(c.width,c.height)*0.5}" step="0.5" value="${r}">
+          <span class="range-val" id="pp-radius-val">${r.toFixed(1)}</span>
+        </div>
+      `;
+      panel.appendChild(sliderSec);
+    }
+    if (activePD.hasStar) {
+      const ir = c.presetStarIR;
+      const starSec = makePanelSection('Inner Radius Ratio');
+      starSec.innerHTML += `
+        <div class="field-row">
+          <input type="range" id="pp-star-ir" min="0.15" max="0.85" step="0.01" value="${ir}">
+          <span class="range-val" id="pp-star-ir-val">${ir.toFixed(2)}</span>
+        </div>
+      `;
+      panel.appendChild(starSec);
+    }
+    if (activePD.hasPoly) {
+      const n = c.presetPolyN;
+      const polySec = makePanelSection('Number of Sides');
+      polySec.innerHTML += `
+        <div class="field-row">
+          <input type="range" id="pp-poly-n" min="3" max="16" step="1" value="${n}">
+          <span class="range-val" id="pp-poly-n-val">${n}</span>
+        </div>
+      `;
+      panel.appendChild(polySec);
+    }
+    if (activePD.isCustom) {
+      const customSec = makePanelSection('Custom SVG Path');
+      customSec.innerHTML += `
+        <textarea id="pp-custom-path" rows="4" placeholder="M 0,0 L 100,0 L 100,100 L 0,100 Z">${c.customPath}</textarea>
+        <button class="hbtn" onclick="applyCustomPath()" style="width:100%;margin-top:4px">Apply Path</button>
+      `;
+      panel.appendChild(customSec);
+    }
+  }
+
+  // Current boundary path (read-only display)
+  const pathSec = makePanelSection('Boundary Path');
+  const pathDisp = document.createElement('div');
+  pathDisp.style.cssText = 'font-family:var(--font-mono);font-size:10px;color:var(--text-dim);word-break:break-all;line-height:1.4;padding:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:5px;max-height:60px;overflow:hidden;text-overflow:ellipsis;';
+  pathDisp.textContent = (getBoundaryPath() || '').slice(0, 200) + '...';
+  pathSec.appendChild(pathDisp);
+  panel.appendChild(pathSec);
+
+  // Wire events
+  bindPaperPanelEvents();
+}
+
+function makePanelSection(title) {
+  const sec = document.createElement('div');
+  sec.className = 'panel-section';
+  const t = document.createElement('div');
+  t.className = 'panel-section-title';
+  t.textContent = title;
+  sec.appendChild(t);
+  return sec;
+}
+
+function bindPaperPanelEvents() {
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', fn);
+  };
+  bind('pp-width', e => { pushUndo(); state.canvas.width = +e.target.value || 210; render(); updatePaperPanel(); });
+  bind('pp-height', e => { pushUndo(); state.canvas.height = +e.target.value || 297; render(); updatePaperPanel(); });
+  bind('pp-units', e => { state.canvas.units = e.target.value; updateStatus(); });
+  bind('pp-shapetype', e => { state.canvas.shapeType = e.target.value; });
+  bind('pp-meaning', e => { state.canvas.shapeMeaning = e.target.value; });
+  bind('pp-radius', e => {
+    const v = +e.target.value;
+    state.canvas.presetRadius = v;
+    const lbl = document.getElementById('pp-radius-val');
+    if (lbl) lbl.textContent = v.toFixed(1);
+    render();
+    refreshPresetsGrid();
+  });
+  bind('pp-star-ir', e => {
+    const v = +e.target.value;
+    state.canvas.presetStarIR = v;
+    const lbl = document.getElementById('pp-star-ir-val');
+    if (lbl) lbl.textContent = v.toFixed(2);
+    render();
+    refreshPresetsGrid();
+  });
+  bind('pp-poly-n', e => {
+    const v = +e.target.value;
+    state.canvas.presetPolyN = v;
+    const lbl = document.getElementById('pp-poly-n-val');
+    if (lbl) lbl.textContent = v;
+    render();
+    refreshPresetsGrid();
+  });
+}
+
+function refreshPresetsGrid() {
+  // Lightweight update without rebuilding whole panel
+}
+
+function applyPreset(id) {
+  pushUndo();
+  state.canvas.presetId = id;
+  state.canvas.presetRadius = null;
+  render();
+  updatePaperPanel();
+}
+
+function applyCustomPath() {
+  const ta = document.getElementById('pp-custom-path');
+  if (!ta) return;
+  pushUndo();
+  state.canvas.customPath = ta.value;
+  render();
+  notify('Custom path applied');
+}
+
+// ============================================================
+//  SHAPE PANEL
+// ============================================================
+function updateShapePanel() {
+  const panel = document.getElementById('panel-shape');
+  const sh = getSelectedShape();
+
+  if (!sh) {
+    panel.innerHTML = '<div class="no-selection">No shape selected.<br>Use Select tool (V) to pick a shape.</div>';
+    return;
+  }
+
+  panel.innerHTML = '';
+
+  // Position & Size
+  const posSec = makePanelSection('Position & Size');
+  const bb = shapeBBox(sh);
+  posSec.innerHTML += `
+    <div class="field-row">
+      <span class="field-label">X</span>
+      <input type="number" id="sp-x" value="${bb.x.toFixed(1)}" step="0.5">
+      <span class="field-label">Y</span>
+      <input type="number" id="sp-y" value="${bb.y.toFixed(1)}" step="0.5">
+    </div>
+    <div class="field-row">
+      <span class="field-label">W</span>
+      <input type="number" id="sp-w" value="${bb.w.toFixed(1)}" step="0.5" min="1">
+      <span class="field-label">H</span>
+      <input type="number" id="sp-h" value="${bb.h.toFixed(1)}" step="0.5" min="1">
+    </div>
+  `;
+  panel.appendChild(posSec);
+
+  // Fill
+  const fillSec = makePanelSection('Fill');
+  const fillNone = sh.fill === 'none';
+  fillSec.innerHTML += `
+    <div class="field-row">
+      <input type="color" id="sp-fill-color" value="${fillNone ? '#6c7dff' : sh.fill}" ${fillNone ? 'disabled' : ''}>
+      <label class="checkbox-row" style="margin-left:6px">
+        <input type="checkbox" id="sp-fill-none" ${fillNone ? 'checked' : ''}> None
+      </label>
+    </div>
+  `;
+  panel.appendChild(fillSec);
+
+  // Stroke
+  const strokeSec = makePanelSection('Stroke');
+  const strokeNone = sh.stroke === 'none';
+  strokeSec.innerHTML += `
+    <div class="field-row">
+      <input type="color" id="sp-stroke-color" value="${strokeNone ? '#ffffff' : sh.stroke}" ${strokeNone ? 'disabled' : ''}>
+      <label class="checkbox-row" style="margin-left:6px">
+        <input type="checkbox" id="sp-stroke-none" ${strokeNone ? 'checked' : ''}> None
+      </label>
+    </div>
+    <div class="field-row" style="margin-top:4px">
+      <span class="field-label-wide">Width</span>
+      <input type="number" id="sp-stroke-w" value="${sh.strokeWidth}" step="0.1" min="0" style="width:60px">
+    </div>
+  `;
+  panel.appendChild(strokeSec);
+
+  // Opacity
+  const opSec = makePanelSection('Opacity');
+  opSec.innerHTML += `
+    <div class="field-row">
+      <input type="range" id="sp-opacity" min="0" max="1" step="0.01" value="${sh.opacity}">
+      <span class="range-val" id="sp-opacity-val">${Math.round(sh.opacity*100)}%</span>
+    </div>
+  `;
+  panel.appendChild(opSec);
+
+  // Text-specific
+  if (sh.type === 'text') {
+    const txtSec = makePanelSection('Text');
+    txtSec.innerHTML += `
+      <div class="field-row">
+        <span class="field-label-wide">Content</span>
+      </div>
+      <textarea id="sp-text" rows="3" style="width:100%">${sh.text || ''}</textarea>
+      <div class="field-row" style="margin-top:6px">
+        <span class="field-label-wide">Font size</span>
+        <input type="number" id="sp-fontsize" value="${sh.fontSize || 12}" min="4" max="200" step="0.5" style="width:60px">
+      </div>
+      <div class="field-row">
+        <span class="field-label-wide">Color</span>
+        <input type="color" id="sp-text-color" value="${sh.color || '#ffffff'}">
+      </div>
+      <div class="field-row">
+        <span class="field-label-wide">Align</span>
+        <select id="sp-text-align">
+          ${['left','center','right'].map(a => `<option value="${a}" ${sh.textAlign===a?'selected':''}>${a.charAt(0).toUpperCase()+a.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+    panel.appendChild(txtSec);
+  }
+
+  // Delete
+  const actSec = makePanelSection('');
+  actSec.innerHTML += `
+    <div class="panel-divider"></div>
+    <button class="hbtn danger" onclick="deleteSelected()" style="width:100%">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M5 3V2h2v1M4.5 3v6h3V3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Delete Shape
+    </button>
+  `;
+  panel.appendChild(actSec);
+
+  bindShapePanelEvents(sh);
+}
+
+function bindShapePanelEvents(sh) {
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', fn);
+  };
+  const bindChange = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', fn);
+  };
+
+  bind('sp-x', e => { sh.x = +e.target.value; render(); });
+  bind('sp-y', e => { sh.y = +e.target.value; render(); });
+  bind('sp-w', e => { sh.w = Math.max(1, +e.target.value); render(); });
+  bind('sp-h', e => { sh.h = Math.max(1, +e.target.value); render(); });
+
+  bind('sp-fill-color', e => { sh.fill = e.target.value; render(); });
+  bindChange('sp-fill-none', e => {
+    sh.fill = e.target.checked ? 'none' : '#6c7dff';
+    const fc = document.getElementById('sp-fill-color');
+    if (fc) fc.disabled = e.target.checked;
+    render();
+  });
+
+  bind('sp-stroke-color', e => { sh.stroke = e.target.value; render(); });
+  bindChange('sp-stroke-none', e => {
+    sh.stroke = e.target.checked ? 'none' : '#ffffff';
+    const sc = document.getElementById('sp-stroke-color');
+    if (sc) sc.disabled = e.target.checked;
+    render();
+  });
+  bind('sp-stroke-w', e => { sh.strokeWidth = +e.target.value; render(); });
+
+  bind('sp-opacity', e => {
+    sh.opacity = +e.target.value;
+    const lbl = document.getElementById('sp-opacity-val');
+    if (lbl) lbl.textContent = Math.round(sh.opacity * 100) + '%';
+    render();
+  });
+
+  if (sh.type === 'text') {
+    bind('sp-text', e => { sh.text = e.target.value; render(); });
+    bind('sp-fontsize', e => { sh.fontSize = +e.target.value; render(); });
+    bind('sp-text-color', e => { sh.color = e.target.value; render(); });
+    bindChange('sp-text-align', e => { sh.textAlign = e.target.value; render(); });
+  }
+}
+
+// ============================================================
+//  KEYBOARD
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  const tag = e.target.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); saveMDF(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'o') { e.preventDefault(); document.getElementById('file-input-el').click(); return; }
+
+  switch(e.key) {
+    case 'v': case 'V': case 'Escape':
+      if (state.drawingPath) { cancelPathDraw(); }
+      setTool('select'); break;
+    case 'p': case 'P': setTool('paper'); switchPanelTab('paper'); break;
+    case 'r': case 'R': setTool('rect'); break;
+    case 'c': case 'C': setTool('circle'); break;
+    case 'e': case 'E': setTool('ellipse'); break;
+    case 'l': case 'L': setTool('line'); break;
+    case 't': case 'T': setTool('text'); break;
+    case 'a': case 'A': setTool('path'); break;
+    case 'Delete': case 'Backspace': deleteSelected(); break;
+    case '+': case '=': setZoom(state.zoom * 1.25); break;
+    case '-': setZoom(state.zoom / 1.25); break;
+    case '0': fitZoom(); break;
+    case 'Enter':
+      if (state.drawingPath && state.pathPoints.length >= 2) finishPathDraw();
+      break;
+  }
+});
+
+// ============================================================
+//  MDF EXPORT
+// ============================================================
+function generateMDF() {
+  const c = state.canvas;
+  const boundary = getBoundaryPath();
+  const now = new Date().toISOString();
+
+  const shapeLines = state.shapes.map(sh => {
+    switch(sh.type) {
+      case 'rect':
+        return `        <rect x="${sh.x.toFixed(3)}" y="${sh.y.toFixed(3)}" width="${Math.abs(sh.w).toFixed(3)}" height="${Math.abs(sh.h).toFixed(3)}" fill="${sh.fill}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      case 'circle': {
+        const r = Math.abs(sh.w) / 2;
+        return `        <circle cx="${(sh.x+r).toFixed(3)}" cy="${(sh.y+r).toFixed(3)}" r="${r.toFixed(3)}" fill="${sh.fill}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      }
+      case 'ellipse': {
+        const rx = Math.abs(sh.w)/2, ry = Math.abs(sh.h)/2;
+        return `        <ellipse cx="${(sh.x+rx).toFixed(3)}" cy="${(sh.y+ry).toFixed(3)}" rx="${rx.toFixed(3)}" ry="${ry.toFixed(3)}" fill="${sh.fill}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      }
+      case 'line':
+        return `        <line x1="${sh.x.toFixed(3)}" y1="${sh.y.toFixed(3)}" x2="${(sh.x+sh.w).toFixed(3)}" y2="${(sh.y+sh.h).toFixed(3)}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      case 'text': {
+        const bb = shapeBBox(sh);
+        const pathStr = `M ${bb.x},${bb.y} L ${bb.x+bb.w},${bb.y} L ${bb.x+bb.w},${bb.y+bb.h} L ${bb.x},${bb.y+bb.h} Z`;
+        return `        <text-block size="${sh.fontSize}" text-align="${sh.textAlign}" color="${sh.color}" opacity="${sh.opacity}">
+          <reflow-region shape="${pathStr}" padding="0"/>
+          <p>${escXML(sh.text || '')}</p>
+        </text-block>`;
+      }
+      case 'path': {
+        const pts = sh.pathPoints || [];
+        if (pts.length < 2) return '';
+        const d = 'M ' + pts.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(' L ') + ' Z';
+        return `        <path d="${d}" fill="${sh.fill}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      }
+      default: return '';
+    }
+  }).filter(Boolean).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<mdf version="0.1" xmlns="https://morphousdoc.org/ns/0.1"
+     xmlns:sem="https://morphousdoc.org/ns/semantics/0.1"
+     xmlns:meta="https://morphousdoc.org/ns/meta/0.1">
+  <manifest>
+    <meta:title>Untitled Document</meta:title>
+    <meta:created>${now}</meta:created>
+  </manifest>
+  <canvas width="${c.width}" height="${c.height}" units="${c.units}"
+          boundary="${escAttr(boundary)}"
+          sem:shape-type="${escAttr(c.shapeType)}"
+          sem:shape-meaning="${escAttr(c.shapeMeaning)}">
+    <layers>
+      <layer id="layer-1" blend-mode="normal">
+${shapeLines}
+      </layer>
+    </layers>
+  </canvas>
+</mdf>`;
+}
+
+function escXML(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function saveMDF() {
+  const xml = generateMDF();
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'document.mdf';
+  a.click();
+  URL.revokeObjectURL(url);
+  notify('Saved as document.mdf');
+}
+
+// ============================================================
+//  EXPORT PDF (via print)
+// ============================================================
+function exportPDF() {
+  const boundary = getBoundaryPath();
+  const c = state.canvas;
+  let shapesSVG = '';
+  for (const sh of state.shapes) {
+    const node = renderShapeSVG(sh);
+    const tmp = document.createElement('div');
+    tmp.appendChild(node.cloneNode ? node.cloneNode(true) : node);
+    shapesSVG += tmp.innerHTML;
+  }
+
+  const pxW = c.units === 'mm' ? c.width * 3.7795 : c.units === 'cm' ? c.width * 37.795 : c.units === 'in' ? c.width * 96 : c.width;
+  const pxH = c.units === 'mm' ? c.height * 3.7795 : c.units === 'cm' ? c.height * 37.795 : c.units === 'in' ? c.height * 96 : c.height;
+
+  const html = `<!DOCTYPE html><html><head><style>
+    @page { size: ${c.width}${c.units} ${c.height}${c.units}; margin: 0; }
+    body { margin: 0; background: white; }
+    svg { display: block; }
+  </style></head><body>
+  <svg width="${pxW}" height="${pxH}" viewBox="0 0 ${c.width} ${c.height}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="bc"><path d="${escXML(boundary)}"/></clipPath>
+    </defs>
+    <path d="${escXML(boundary)}" fill="white"/>
+    <g clip-path="url(#bc)">${shapesSVG}</g>
+    <path d="${escXML(boundary)}" fill="none" stroke="#ccc" stroke-width="0.3"/>
+  </svg></body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+// ============================================================
+//  OPEN .MDF FILE
+// ============================================================
+document.getElementById('file-input-el').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadMDFText(ev.target.result);
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function loadMDFText(text) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'application/xml');
+    const perr = doc.querySelector('parsererror');
+    if (perr) throw new Error('XML parse error');
+
+    const canvasEl = doc.querySelector('canvas');
+    if (!canvasEl) throw new Error('No <canvas> found');
+
+    pushUndo();
+    state.shapes = [];
+
+    state.canvas.width  = parseFloat(canvasEl.getAttribute('width')  || '210');
+    state.canvas.height = parseFloat(canvasEl.getAttribute('height') || '297');
+    state.canvas.units  = canvasEl.getAttribute('units') || 'mm';
+
+    const boundary = canvasEl.getAttribute('boundary') || '';
+    state.canvas.customPath = boundary;
+    state.canvas.presetId = 'custom';
+
+    // Try to detect preset
+    const st = canvasEl.getAttribute('sem:shape-type') || '';
+    state.canvas.shapeType = st || 'rectangle';
+    state.canvas.shapeMeaning = canvasEl.getAttribute('sem:shape-meaning') || 'page';
+
+    // Load shapes from layers
+    const layers = doc.querySelectorAll('layer');
+    let id = state.nextId;
+    layers.forEach(layer => {
+      for (const child of layer.children) {
+        const ln = child.localName || child.tagName;
+        let sh = null;
+        if (ln === 'rect') {
+          sh = { id: 'sh-'+(id++), type: 'rect',
+            x: parseFloat(child.getAttribute('x')||0), y: parseFloat(child.getAttribute('y')||0),
+            w: parseFloat(child.getAttribute('width')||10), h: parseFloat(child.getAttribute('height')||10),
+            fill: child.getAttribute('fill')||'#6c7dff', stroke: child.getAttribute('stroke')||'none',
+            strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
+        } else if (ln === 'circle') {
+          const cx = parseFloat(child.getAttribute('cx')||0), cy = parseFloat(child.getAttribute('cy')||0);
+          const r = parseFloat(child.getAttribute('r')||10);
+          sh = { id: 'sh-'+(id++), type: 'circle',
+            x: cx-r, y: cy-r, w: r*2, h: r*2,
+            fill: child.getAttribute('fill')||'#6c7dff', stroke: child.getAttribute('stroke')||'none',
+            strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
+        } else if (ln === 'ellipse') {
+          const cx = parseFloat(child.getAttribute('cx')||0), cy = parseFloat(child.getAttribute('cy')||0);
+          const rx = parseFloat(child.getAttribute('rx')||10), ry = parseFloat(child.getAttribute('ry')||10);
+          sh = { id: 'sh-'+(id++), type: 'ellipse',
+            x: cx-rx, y: cy-ry, w: rx*2, h: ry*2,
+            fill: child.getAttribute('fill')||'#6c7dff', stroke: child.getAttribute('stroke')||'none',
+            strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
+        } else if (ln === 'line') {
+          const x1 = parseFloat(child.getAttribute('x1')||0), y1 = parseFloat(child.getAttribute('y1')||0);
+          const x2 = parseFloat(child.getAttribute('x2')||10), y2 = parseFloat(child.getAttribute('y2')||10);
+          sh = { id: 'sh-'+(id++), type: 'line',
+            x: x1, y: y1, w: x2-x1, h: y2-y1,
+            fill: 'none', stroke: child.getAttribute('stroke')||'#fff',
+            strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
+        } else if (ln === 'path') {
+          const d = child.getAttribute('d') || '';
+          // Parse points roughly
+          const pts = [];
+          const re = /[ML]\s*([\d.-]+)[,\s]+([\d.-]+)/gi;
+          let m;
+          while ((m = re.exec(d)) !== null) pts.push({ x: parseFloat(m[1]), y: parseFloat(m[2]) });
+          if (pts.length) {
+            const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+            sh = { id: 'sh-'+(id++), type: 'path',
+              x: Math.min(...xs), y: Math.min(...ys),
+              w: Math.max(...xs)-Math.min(...xs), h: Math.max(...ys)-Math.min(...ys),
+              pathPoints: pts,
+              fill: child.getAttribute('fill')||'#6c7dff', stroke: child.getAttribute('stroke')||'none',
+              strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
+              text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
+          }
+        } else if (ln === 'text-block') {
+          const rr = child.querySelector('reflow-region');
+          const shapeStr = rr ? rr.getAttribute('shape') : '';
+          const p = child.querySelector('p');
+          let bx=10,by=10,bw=60,bh=20;
+          if (shapeStr) {
+            const nums = shapeStr.match(/[\d.-]+/g) || [];
+            if (nums.length >= 4) { bx=+nums[0]; by=+nums[1]; bw=+nums[2]-bx; bh=+nums[3]-by; }
+          }
+          sh = { id: 'sh-'+(id++), type: 'text',
+            x: bx, y: by, w: bw, h: bh,
+            fill: 'none', stroke: 'none', strokeWidth: 0, opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: p ? p.textContent.trim() : '',
+            fontSize: parseFloat(child.getAttribute('size')||child.getAttribute('font-size')||12),
+            textAlign: child.getAttribute('text-align')||'center',
+            color: child.getAttribute('color')||'#000' };
+        }
+        if (sh) state.shapes.push(sh);
+      }
+    });
+
+    state.nextId = id;
+    state.selectedId = null;
+    render();
+    updatePaperPanel();
+    updateShapePanel();
+    fitZoom();
+    notify('File loaded');
+  } catch(err) {
+    notify('Error loading file: ' + err.message);
+    console.error(err);
+  }
+}
+
+// ============================================================
+//  NEW DOCUMENT
+// ============================================================
+function newDocument() {
+  if (state.shapes.length > 0) {
+    showModal('New Document', 'Discard current document and start fresh?', () => {
+      pushUndo();
+      state.shapes = [];
+      state.selectedId = null;
+      state.canvas = {
+        width: 210, height: 297, units: 'mm',
+        boundary: null, shapeType: 'rectangle', shapeMeaning: 'page',
+        presetId: 'rectangle', presetRadius: null, presetStarIR: 0.4, presetPolyN: 6, customPath: '',
+      };
+      state.nextId = 1;
+      render();
+      updatePaperPanel();
+      updateShapePanel();
+      fitZoom();
+      notify('New document created');
+    });
+  } else {
+    render();
+    updatePaperPanel();
+    notify('New document');
+  }
+}
+
+// ============================================================
+//  MODAL
+// ============================================================
+let _modalCb = null;
+function showModal(title, msg, onOk) {
+  _modalCb = onOk;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').textContent = msg;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  _modalCb = null;
+}
+function confirmModal() {
+  closeModal();
+  if (_modalCb) _modalCb();
+}
+
+// ============================================================
+//  NOTIFICATION
+// ============================================================
+let _notifTimer = null;
+function notify(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_notifTimer);
+  _notifTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function init() {
+  updatePaperPanel();
+  render();
+  fitZoom();
+  updateShapePanel();
+}
+
+init();
+</script>
+</body>
+</html>
