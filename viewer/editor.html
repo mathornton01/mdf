@@ -481,6 +481,15 @@
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M8 4v8M5.5 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       <span>T</span>
     </button>
+    <button class="tool-btn" id="tool-curved-text" onclick="setTool('curved-text')" title="Curved Text (U)">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M 2.5,11 A 5.5,5.5 0 0,1 13.5,11" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+        <path d="M 4.5,9.5 L 4.5,7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M 8,8.3 L 8,6.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M 11.5,9.5 L 11.5,7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span>U</span>
+    </button>
     <button class="tool-btn" id="tool-path" onclick="setTool('path')" title="Polygon / Path (A)">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l2.5 4h4L11 9l1.5 4L8 11l-4.5 2L5 9 1.5 6h4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
       <span>A</span>
@@ -878,6 +887,57 @@ function renderShapeSVG(sh) {
       }
       break;
     }
+    case 'curved-text': {
+      const cx = sh.x + Math.abs(sh.w) / 2;
+      const cy = sh.y + Math.abs(sh.h) / 2;
+      const r  = Math.max(Math.min(Math.abs(sh.w), Math.abs(sh.h)) / 2, 4);
+      const startPct = (sh.startOffset !== undefined ? sh.startOffset : 50) + '%';
+      const flip = sh.curveFlip || false;
+      const pathId = 'ctp-' + sh.id;
+
+      // Top arc: counter-clockwise (text reads L→R along the top of the circle)
+      // Bottom arc: clockwise (text reads L→R along the bottom)
+      const arcPath = flip
+        ? `M ${cx-r},${cy} A ${r},${r} 0 0,1 ${cx+r},${cy}`
+        : `M ${cx-r},${cy} A ${r},${r} 0 0,0 ${cx+r},${cy}`;
+
+      const g = el('g', { opacity: sh.opacity, 'data-id': sh.id });
+
+      // Hidden path for textPath reference (must be in SVG DOM)
+      const hiddenPath = el('path', {
+        id: pathId, d: arcPath,
+        fill: 'none', stroke: 'none',
+        'pointer-events': 'none',
+      });
+      g.appendChild(hiddenPath);
+
+      // Guide circle
+      g.appendChild(el('circle', {
+        cx, cy, r,
+        fill: 'none',
+        stroke: 'rgba(108,125,255,0.22)',
+        'stroke-width': Math.max(0.25, 0.4 / (state.zoom || 1)),
+        'stroke-dasharray': '2,2',
+        'pointer-events': 'none',
+      }));
+
+      // Curved text
+      const tEl = el('text', {
+        fill: sh.color || '#ffffff',
+        'font-size': sh.fontSize || 14,
+        'font-family': 'Inter, system-ui, sans-serif',
+      });
+      const tp = el('textPath', {
+        href: '#' + pathId,
+        startOffset: startPct,
+        'text-anchor': 'middle',
+      });
+      tp.textContent = sh.text || 'Curved Text';
+      tEl.appendChild(tp);
+      g.appendChild(tEl);
+
+      return g;
+    }
     default:
       node = el('rect', { ...baseAttrs, x: sh.x, y: sh.y, width: 10, height: 10 });
   }
@@ -1111,6 +1171,7 @@ function onSVGMouseup(e) {
 
   const tool = state.activeTool;
   if (tool === 'select' || tool === 'path') return;
+  // curved-text uses drag to size the circle
 
   const dx = pt.x - start.x;
   const dy = pt.y - start.y;
@@ -1133,6 +1194,21 @@ function onSVGMouseup(e) {
     sh = makeShape('text', x, y, Math.max(w, 40), Math.max(h, 20));
     sh.fill = 'none'; sh.stroke = 'none';
     sh.color = '#ffffff';
+  } else if (tool === 'curved-text') {
+    const r = Math.max(Math.min(w, h) / 2, 20);
+    sh = {
+      id: 'sh-' + (state.nextId++),
+      type: 'curved-text',
+      x, y, w: r * 2, h: r * 2,
+      fill: 'none', stroke: 'none', strokeWidth: 0.3,
+      opacity: 1.0,
+      text: 'Curved Text',
+      fontSize: Math.max(Math.round(r * 0.32), 8),
+      color: '#ffffff',
+      textAlign: 'center',
+      startOffset: 50,
+      curveFlip: false,
+    };
   }
 
   if (sh) {
@@ -1173,6 +1249,13 @@ function renderRubberband(start, cur) {
     dg.appendChild(el('rect', {
       x, y, width: w, height: h,
       fill: 'rgba(108,125,255,0.12)', stroke: '#6c7dff', 'stroke-width': sw,
+      'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
+    }));
+  } else if (tool === 'curved-text') {
+    const r = Math.min(w,h)/2;
+    dg.appendChild(el('circle', {
+      cx: x + r, cy: y + r, r,
+      fill: 'rgba(108,125,255,0.08)', stroke: '#6c7dff', 'stroke-width': sw,
       'stroke-dasharray': `${3/state.zoom},${2/state.zoom}`,
     }));
   } else if (tool === 'circle') {
@@ -1733,6 +1816,7 @@ function _renderIdlePanel(panel) {
     { key: 'E', label: 'Ellipse' },
     { key: 'L', label: 'Line' },
     { key: 'T', label: 'Text' },
+    { key: 'U', label: 'Curved text' },
     { key: 'A', label: 'Polygon / path' },
   ];
   const hintList = document.createElement('div');
@@ -1833,6 +1917,37 @@ function _renderShapePanel(panel, sh) {
     panel.appendChild(txtSec);
   }
 
+  // Curved-text-specific
+  if (sh.type === 'curved-text') {
+    const ctSec = makePanelSection('Curved Text');
+    const off = sh.startOffset !== undefined ? sh.startOffset : 50;
+    ctSec.innerHTML += `
+      <textarea id="sp-ct-text" rows="3" style="width:100%;margin-bottom:6px">${sh.text || ''}</textarea>
+      <div class="field-row">
+        <span class="field-label-wide">Font size</span>
+        <input type="number" id="sp-ct-fontsize" value="${sh.fontSize || 14}" min="4" max="400" step="0.5" style="width:60px">
+      </div>
+      <div class="field-row">
+        <span class="field-label-wide">Color</span>
+        <input type="color" id="sp-ct-color" value="${sh.color || '#ffffff'}">
+      </div>
+      <div class="panel-section-title" style="margin-top:8px">Arc</div>
+      <div class="field-row">
+        <span class="field-label-wide">Position</span>
+        <input type="range" id="sp-ct-offset" min="0" max="100" step="1" value="${off}">
+        <span class="range-val" id="sp-ct-offset-val">${off}%</span>
+      </div>
+      <label class="checkbox-row" style="margin-top:4px">
+        <input type="checkbox" id="sp-ct-flip" ${sh.curveFlip ? 'checked' : ''}>
+        Bottom arc (flip)
+      </label>
+      <div class="field-row" style="margin-top:4px;font-size:10px;color:var(--text-dim);">
+        Drag circle handles to resize
+      </div>
+    `;
+    panel.appendChild(ctSec);
+  }
+
   // Delete
   const actSec = makePanelSection('');
   actSec.innerHTML += `
@@ -1892,6 +2007,19 @@ function bindShapePanelEvents(sh) {
     bind('sp-text-color', e => { sh.color = e.target.value; render(); });
     bindChange('sp-text-align', e => { sh.textAlign = e.target.value; render(); });
   }
+
+  if (sh.type === 'curved-text') {
+    bind('sp-ct-text', e => { sh.text = e.target.value; render(); });
+    bind('sp-ct-fontsize', e => { sh.fontSize = +e.target.value; render(); });
+    bind('sp-ct-color', e => { sh.color = e.target.value; render(); });
+    bind('sp-ct-offset', e => {
+      sh.startOffset = +e.target.value;
+      const lbl = document.getElementById('sp-ct-offset-val');
+      if (lbl) lbl.textContent = sh.startOffset + '%';
+      render();
+    });
+    bindChange('sp-ct-flip', e => { sh.curveFlip = e.target.checked; render(); });
+  }
 }
 
 // ============================================================
@@ -1916,6 +2044,7 @@ document.addEventListener('keydown', (e) => {
     case 'e': case 'E': setTool('ellipse'); break;
     case 'l': case 'L': setTool('line'); break;
     case 't': case 'T': setTool('text'); break;
+    case 'u': case 'U': setTool('curved-text'); break;
     case 'a': case 'A': setTool('path'); break;
     case 'Delete': case 'Backspace': deleteSelected(); break;
     case '+': case '=': setZoom(state.zoom * 1.25); break;
@@ -1967,6 +2096,12 @@ function generateMDF() {
         if (pts.length < 2) return '';
         const d = 'M ' + pts.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(' L ') + ' Z';
         return `        <path d="${d}" fill="${sh.fill}" stroke="${sh.stroke}" stroke-width="${sh.strokeWidth}" opacity="${sh.opacity}"/>`;
+      }
+      case 'curved-text': {
+        const cx = (sh.x + Math.abs(sh.w)/2).toFixed(3);
+        const cy = (sh.y + Math.abs(sh.h)/2).toFixed(3);
+        const r  = (Math.min(Math.abs(sh.w), Math.abs(sh.h))/2).toFixed(3);
+        return `        <curved-text cx="${cx}" cy="${cy}" r="${r}" size="${sh.fontSize}" color="${escAttr(sh.color)}" start-offset="${sh.startOffset||50}" flip="${sh.curveFlip||false}" opacity="${sh.opacity}">${escXML(sh.text||'')}</curved-text>`;
       }
       default: return '';
     }
@@ -2143,6 +2278,19 @@ function loadMDFText(text) {
               strokeWidth: parseFloat(child.getAttribute('stroke-width')||0.5), opacity: parseFloat(child.getAttribute('opacity')||1),
               text: '', fontSize: 12, textAlign: 'center', color: '#fff' };
           }
+        } else if (ln === 'curved-text') {
+          const cx2 = parseFloat(child.getAttribute('cx')||0);
+          const cy2 = parseFloat(child.getAttribute('cy')||0);
+          const cr  = parseFloat(child.getAttribute('r')||50);
+          sh = { id: 'sh-'+(id++), type: 'curved-text',
+            x: cx2-cr, y: cy2-cr, w: cr*2, h: cr*2,
+            fill: 'none', stroke: 'none', strokeWidth: 0, opacity: parseFloat(child.getAttribute('opacity')||1),
+            text: child.textContent.trim(),
+            fontSize: parseFloat(child.getAttribute('size')||14),
+            textAlign: 'center',
+            color: child.getAttribute('color')||'#fff',
+            startOffset: parseFloat(child.getAttribute('start-offset')||50),
+            curveFlip: child.getAttribute('flip') === 'true' };
         } else if (ln === 'text-block') {
           const rr = child.querySelector('reflow-region');
           const shapeStr = rr ? rr.getAttribute('shape') : '';
