@@ -364,16 +364,16 @@
       gap: 6px;
     }
     .preset-tile-lg {
-      aspect-ratio: 1; border-radius: 8px;
+      border-radius: 8px;
       background: var(--surface-2); border: 1.5px solid var(--border);
       cursor: pointer; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 4px;
       transition: border-color var(--transition), background var(--transition);
-      padding: 6px;
+      padding: 6px; min-height: 52px;
     }
     .preset-tile-lg:hover { border-color: var(--border-2); background: var(--surface-3); }
     .preset-tile-lg.active { border-color: var(--accent); background: var(--accent-glow); }
-    .preset-tile-lg svg { width: 56px; height: 56px; }
+    .preset-tile-lg svg { display: block; max-width: 60px; max-height: 60px; }
     .preset-tile-lg-label { font-size: 9px; color: var(--text-muted); text-align: center; line-height: 1.2; }
 
     /* Modal dims row */
@@ -1383,11 +1383,19 @@ document.getElementById('canvas-area').addEventListener('wheel', (e) => {
 // ============================================================
 //  CANVAS SHAPE BUTTON (header)
 // ============================================================
-function buildPresetSVG(id, W, H, size) {
-  size = size || 28;
-  const sw = size, sh = size;
-  const scaleX = sw / W, scaleY = sh / H;
-  const scale = Math.min(scaleX, scaleY) * 0.85;
+function buildPresetSVG(id, W, H, maxSize) {
+  maxSize = maxSize || 56;
+  // Compute proportional SVG dimensions matching actual canvas aspect ratio
+  const aspect = W / H;
+  let sw, sh;
+  if (aspect >= 1) {
+    sw = maxSize;
+    sh = Math.max(Math.round(maxSize / aspect), 20);
+  } else {
+    sh = maxSize;
+    sw = Math.max(Math.round(maxSize * aspect), 20);
+  }
+  const scale = Math.min(sw / W, sh / H) * 0.85;
   const ox = (sw - W*scale)/2, oy = (sh - H*scale)/2;
 
   let d;
@@ -1412,13 +1420,16 @@ function updateCanvasShapeBtn() {
   const activePD = PRESET_DEFS.find(p => p.id === c.presetId);
   const label = activePD ? activePD.label : c.presetId;
 
-  // Generate the tiny 20x20 boundary-path preview
+  // Generate the tiny proportional boundary-path preview (max 20px on longest side)
   const boundary = getBoundaryPath();
   const W = c.width, H = c.height;
-  const size = 20;
-  const scale = Math.min(size / W, size / H) * 0.85;
-  const ox = (size - W*scale)/2, oy = (size - H*scale)/2;
-  const previewSVG = `<svg width="${size}" height="${size}" viewBox="${-ox/scale} ${-oy/scale} ${size/scale} ${size/scale}" xmlns="http://www.w3.org/2000/svg">
+  const maxPx = 20;
+  const bAspect = W / H;
+  const bsw = bAspect >= 1 ? maxPx : Math.max(Math.round(maxPx * bAspect), 10);
+  const bsh = bAspect < 1 ? maxPx : Math.max(Math.round(maxPx / bAspect), 10);
+  const scale = Math.min(bsw / W, bsh / H) * 0.85;
+  const ox = (bsw - W*scale)/2, oy = (bsh - H*scale)/2;
+  const previewSVG = `<svg width="${bsw}" height="${bsh}" viewBox="${-ox/scale} ${-oy/scale} ${bsw/scale} ${bsh/scale}" xmlns="http://www.w3.org/2000/svg">
     <path d="${boundary}" fill="rgba(108,125,255,0.18)" stroke="#6c7dff" stroke-width="${0.8/scale}"/>
   </svg>`;
 
@@ -1683,10 +1694,13 @@ function _renderIdlePanel(panel) {
   previewWrap.className = 'canvas-info-preview';
   const boundary = getBoundaryPath();
   const W = c.width, H = c.height;
-  const size = 64;
-  const scale = Math.min(size / W, size / H) * 0.85;
-  const ox = (size - W*scale)/2, oy = (size - H*scale)/2;
-  previewWrap.innerHTML = `<svg width="${size}" height="${size}" viewBox="${-ox/scale} ${-oy/scale} ${size/scale} ${size/scale}" xmlns="http://www.w3.org/2000/svg">
+  const maxSz = 64;
+  const aspect = W / H;
+  const sw = aspect >= 1 ? maxSz : Math.max(Math.round(maxSz * aspect), 20);
+  const sh = aspect < 1 ? maxSz : Math.max(Math.round(maxSz / aspect), 20);
+  const scale = Math.min(sw / W, sh / H) * 0.85;
+  const ox = (sw - W*scale)/2, oy = (sh - H*scale)/2;
+  previewWrap.innerHTML = `<svg width="${sw}" height="${sh}" viewBox="${-ox/scale} ${-oy/scale} ${sw/scale} ${sh/scale}" xmlns="http://www.w3.org/2000/svg">
     <path d="${boundary}" fill="white" stroke="#6c7dff" stroke-width="${1/scale}"/>
   </svg>`;
   canvasSec.appendChild(previewWrap);
